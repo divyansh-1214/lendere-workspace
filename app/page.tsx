@@ -6,8 +6,8 @@ import Link from "next/link";
 type ImportError = { row: number; message: string };
 type ImportResult = { success: boolean; message: string; errors?: ImportError[] };
 
-const template = `firstName,lastName,phone,personalEmail,address1,address2,city,state,pinCode,employmentType,companyName,monthlyIncome,loanAmount
-Anika,Sharma,9876543210,anika@example.com,14 Lake View Road,Flat 3B,Pune,Maharashtra,411001,salaried,Northstar Finance,85000,1200000`;
+const template = `_doc_id,firstName,lastName,phone,dob,creditScore,employmentTypes,personalEmail,address1,address2,city,state,pinCode,companyName,monthlyIncome,loanAmount
+LEAD-001,Anika,Sharma,9876543210,1992-06-15,742,salaried,anika@example.com,14 Lake View Road,Flat 3B,Pune,Maharashtra,411001,Northstar Finance,85000,1200000`;
 
 export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -51,7 +51,7 @@ export default function Home() {
       <div className={`drop-zone ${dragging ? "is-dragging" : ""} ${file ? "has-file" : ""}`} onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragging(false)} onDrop={onDrop} onClick={() => inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") inputRef.current?.click(); }}>
         <input ref={inputRef} type="file" accept=".csv,text/csv" onChange={onFileChange} hidden /><div className="upload-symbol">↥</div>{file ? <><p className="drop-title">{file.name}</p><p className="drop-subtitle">{(file.size / 1024).toFixed(1)} KB · Ready to import</p></> : <><p className="drop-title">Drop your CSV here</p><p className="drop-subtitle">or click to browse from your computer</p></>}<span className="file-rule">CSV files only · UTF-8 recommended</span>
       </div>
-      <div className="action-row"><p className="mapping-hint"><span>↳</span> Required: first name, last name, phone</p><button className="import-button" type="button" onClick={upload} disabled={!file || uploading}>{uploading ? "Importing rows…" : "Import leads"}<span>→</span></button></div>
+      <div className="action-row"><p className="mapping-hint"><span>↳</span> Required: _doc_id, first name, last name, phone, DOB, credit score, employment type</p><button className="import-button" type="button" onClick={upload} disabled={!file || uploading}>{uploading ? "Importing rows…" : "Import leads"}<span>→</span></button></div>
       {result && <section className={`result-panel ${result.success ? "success" : "failure"}`} aria-live="polite"><div className="result-icon">{result.success ? "✓" : "!"}</div><div className="result-content"><strong>{result.message}</strong>{result.errors?.length ? <div className="error-list">{result.errors.slice(0, 5).map((error) => <p key={`${error.row}-${error.message}`}>Row {error.row}: {error.message}</p>)}</div> : <p>Validated records are now available in your leads collection.</p>}</div></section>}
       <div className="schema-strip"><div><span className="schema-number">A</span><span><strong>Addresses supported</strong><small>address1 and address2 are stored on the same lead</small></span></div><div><span className="schema-number">B</span><span><strong>Flexible headers</strong><small>first_name and firstName both work</small></span></div><div><span className="schema-number">C</span><span><strong>Row-level feedback</strong><small>Invalid rows return with their line number</small></span></div></div>
     </section><footer><span>© 2026 Lendere</span><span>Lead operations / Import centre</span></footer>

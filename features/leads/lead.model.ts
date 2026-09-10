@@ -5,9 +5,11 @@ import mongoose, { Schema, Model } from "mongoose";
 // ============================================================
 
 export interface ILeads {
+  _doc_id?: string;
   personal: {
     firstName: string;
     lastName: string;
+    age: number;
     nickname?: string | null;
     fatherName?: string | null;
     motherName?: string | null;
@@ -44,7 +46,7 @@ export interface ILeads {
       | null;
     companyName?: string | null;
     workExperience?: number | null;
-    monthlyIncome?: number | null;
+    income?: number | null;
   };
 
   credit: {
@@ -143,7 +145,11 @@ const LeadsSchema = new Schema<ILeads>(
     // ----------------------------------------------------------
     // PERSONAL INFORMATION
     // ----------------------------------------------------------
-
+    _doc_id: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     personal: {
       firstName: {
         type: String,
@@ -155,6 +161,13 @@ const LeadsSchema = new Schema<ILeads>(
         type: String,
         required: true,
         trim: true,
+      },
+
+      age: {
+        type: Number,
+        required: true,
+        min: 0,
+        max: 150,
       },
 
       nickname: {
@@ -247,6 +260,7 @@ const LeadsSchema = new Schema<ILeads>(
     employment: {
       type: {
         type: String,
+        required: true,
         enum: [
           "salaried",
           "self_employed",
@@ -270,7 +284,7 @@ const LeadsSchema = new Schema<ILeads>(
         min: 0,
       },
 
-      monthlyIncome: {
+      income: {
         type: Number,
         default: null,
         min: 0,
@@ -284,6 +298,7 @@ const LeadsSchema = new Schema<ILeads>(
     credit: {
       creditScore: {
         type: Number,
+        required: true,
         default: null,
         min: 0,
         max: 900,

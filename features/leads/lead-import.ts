@@ -39,12 +39,30 @@ const dateFrom = (value: string | null) => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+const ageFromDob = (dob: Date | null) => {
+  if (!dob || dob > new Date()) return null;
+
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const birthdayHasPassed =
+    today.getMonth() > dob.getMonth() ||
+    (today.getMonth() === dob.getMonth() && today.getDate() >= dob.getDate());
+
+  if (!birthdayHasPassed) age -= 1;
+  return age >= 0 ? age : null;
+};
+
 const nullable = (value: string | null) => value || null;
 
 export function transformLeadRow(row: CsvRow, sourceDocumentId: string, sourceRow: number): LeadImportResult {
   const firstName = valueFrom(row, "firstName", "first_name", "firstname", "name");
   const lastName = valueFrom(row, "lastName", "last_name", "lastname");
   const phone = valueFrom(row, "phone", "mobile", "mobileNumber", "phoneNumber","_doc_id");
+  const documentId = valueFrom(row, "_doc_id", "docId", "documentId");
+  const dob = dateFrom(valueFrom(row, "dob", "dateOfBirth", "date_of_birth"));
+  const age = ageFromDob(dob);
+  const creditScore = numberFrom(valueFrom(row, "creditScore", "credit_score", "creditscore"));
+  const employmentType = nullable(valueFrom(row, "employmentType", "employment_type", "employmentTypes", "jobType"));
   const addressLine1 = valueFrom(
     row,
     "address1",
@@ -60,11 +78,16 @@ export function transformLeadRow(row: CsvRow, sourceDocumentId: string, sourceRo
     "addressLine2",
     "address_line_2"
   );
-
+  
   const missing = [
     !firstName && "firstName",
     !lastName && "lastName",
     !phone && "phone",
+    !documentId && "_doc_id",
+    !dob && "dob",
+    age === null && "a valid dob",
+    creditScore === null && "creditScore",
+    !employmentType && "employmentTypes",
     addressLine2 && !addressLine1 && "address1 (required when address2 is provided)",
   ].filter(Boolean);
 
@@ -73,13 +96,15 @@ export function transformLeadRow(row: CsvRow, sourceDocumentId: string, sourceRo
   }
 
   const lead = {
+    _doc_id: documentId!,
     personal: {
       firstName: firstName!,
       lastName: lastName!,
+      age:age!,
       nickname: nullable(valueFrom(row, "nickname", "nickName")),
       fatherName: nullable(valueFrom(row, "fatherName", "father_name")),
       motherName: nullable(valueFrom(row, "motherName", "mother_name")),
-      dob: dateFrom(valueFrom(row, "dob", "dateOfBirth", "date_of_birth")),
+      dob,
       gender: nullable(valueFrom(row, "gender")) as "male" | "female" | "other" | null,
       maritalStatus: nullable(valueFrom(row, "maritalStatus", "marital_status")),
       numberOfKids: numberFrom(valueFrom(row, "numberOfKids", "number_of_kids", "kids")),
@@ -101,7 +126,7 @@ export function transformLeadRow(row: CsvRow, sourceDocumentId: string, sourceRo
         }]
       : [],
     employment: {
-      type: nullable(valueFrom(row, "employmentType", "employment_type", "jobType")) as
+      type: employmentType as
         | "salaried"
         | "self_employed"
         | "business"
@@ -111,10 +136,10 @@ export function transformLeadRow(row: CsvRow, sourceDocumentId: string, sourceRo
         | null,
       companyName: nullable(valueFrom(row, "companyName", "company_name", "employer")),
       workExperience: numberFrom(valueFrom(row, "workExperience", "work_experience", "experience")),
-      monthlyIncome: numberFrom(valueFrom(row, "monthlyIncome", "monthly_income", "income")),
+      income: numberFrom(valueFrom(row, "income", "salary")),
     },
     credit: {
-      creditScore: numberFrom(valueFrom(row, "creditScore", "credit_score")),
+      creditScore,
       crifScore: numberFrom(valueFrom(row, "crifScore", "crif_score")),
       crifScoreSource: nullable(valueFrom(row, "crifScoreSource", "crif_score_source")),
       crifScoreUpdatedAt: dateFrom(valueFrom(row, "crifScoreUpdatedAt", "crif_score_updated_at")),
