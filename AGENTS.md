@@ -1,3 +1,5 @@
+ `GET /api/leads` filters stored leads using `ageMin`, `ageMax`, `minAnnual` (or `minAnnualIncome`), `minExclusive` (or `creditScoreMinExclusive`), `maxInclusive` (or `creditScoreMaxInclusive`), and comma-separated `employmentTypes` query parameters.
+ Lead filtering uses inclusive age bounds, an income minimum, a credit score greater than `minExclusive` and at or below `maxInclusive`, and employment types within the requested list.
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know

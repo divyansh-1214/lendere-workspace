@@ -4,11 +4,100 @@ import { connectDB } from "@/lib/db";
 import Leads from "@/features/leads/lead.model";
 import { transformLeadRow, type CsvRow } from "@/features/leads/lead-import";
 
-export function GET() {
-  return NextResponse.json({
-    success: true,
-    message: "CSV endpoint is available. Upload a file with POST /api/csv.",
-  });
+const numberQuery = (value: string | null, field: string) => {
+  if (value === null || value.trim() === "") return undefined;
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) {
+    throw new Error(`${field} must be a valid number`);
+  }
+
+  return parsed;
+};
+
+const listQuery = (value: string | null) =>
+  value
+    ?.split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+export async function GET(request: NextRequest) {
+  try {
+    const query = request.nextUrl.searchParams;
+    const ageMin = numberQuery(query.get("ageMin"), "ageMin");
+    const ageMax = numberQuery(query.get("ageMax"), "ageMax");
+    const minAnnual = numberQuery(
+      query.get("minAnnual") ?? query.get("minAnnualIncome"),
+      "minAnnual"
+    );
+    const creditMin = numberQuery(
+      query.get("minExclusive") ?? query.get("creditScoreMinExclusive"),
+      "minExclusive"
+    );
+    const creditMax = numberQuery(
+      query.get("maxInclusive") ?? query.get("creditScoreMaxInclusive"),
+      "maxInclusive"
+    );
+    const employmentTypes = listQuery(
+      query.get("employmentTypes") ?? query.get("employmentType")
+    );
+
+    if (ageMin !== undefined && ageMax !== undefined && ageMin > ageMax) {
+      return NextResponse.json(
+        { success: false, message: "ageMin cannot exceed ageMax" },
+        { status: 400 }
+      );
+    }
+
+    if (
+      creditMin !== undefined &&
+      creditMax !== undefined &&
+      creditMin >= creditMax
+    ) {
+      return NextResponse.json(
+        { success: false, message: "minExclusive must be less than maxInclusive" },
+        { status: 400 }
+      );
+    }
+
+    const filter: Record<string, unknown> = {};
+    if (ageMin !== undefined) filter["personal.age"] = { $gte: ageMin };
+    if (ageMax !== undefined) {
+      filter["personal.age"] = {
+        ...(filter["personal.age"] as Record<string, number> | undefined),
+        $lte: ageMax,
+      };
+    }
+    if (minAnnual !== undefined) filter["employment.income"] = { $gte: minAnnual };
+    if (creditMin !== undefined) filter["credit.creditScore"] = { $gt: creditMin };
+    if (creditMax !== undefined) {
+      filter["credit.creditScore"] = {
+        ...(filter["credit.creditScore"] as Record<string, number> | undefined),
+        $lte: creditMax,
+      };
+    }
+    if (employmentTypes?.length) {
+      filter["employment.type"] = { $in: employmentTypes };
+    }
+
+    await connectDB();
+      const leads = await Leads.find(filter).sort({ "metadata.createdAt": -1 }).lean();
+
+    return NextResponse.json({
+      success: true,
+      count: leads.length,
+      filters: { ageMin, ageMax, minAnnual, creditMin, creditMax, employmentTypes },
+      data: leads,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to filter leads",
+      },
+      { status: 400 }
+    );
+  }
 }
 
 export function OPTIONS() {
