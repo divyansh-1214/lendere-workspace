@@ -4,7 +4,6 @@ export type LenderImportResult = {
   lender: {
     lenderId: string;
     name: string;
-    code: string;
     isActive: boolean;
     priority: number;
     flow: "OTP" | "REDIRECT" | "API" | "MANUAL";
@@ -74,24 +73,24 @@ export function transformLenderRow(
 ): LenderImportResult {
   const lenderId = valueFrom(row, "lenderId", "lender_id");
   const name = valueFrom(row, "name", "lenderName", "lender_name");
-  const code = valueFrom(row, "code", "lenderCode", "lender_code");
   const flow = valueFrom(row, "flow", "onboardingFlow", "onboarding_flow");
   const isActive = booleanFrom(valueFrom(row, "isActive", "is_active"), true);
-  const priority = numberFrom(valueFrom(row, "priority")) ?? 999;
+  const priority = numberFrom(valueFrom(row, "priority")) ?? 0;
   const ageMin = numberFrom(valueFrom(row, "ageMin", "minAge", "age_min"));
   const ageMax = numberFrom(valueFrom(row, "ageMax", "maxAge", "age_max"));
   const minAnnual = numberFrom(
-    valueFrom(row, "minAnnualIncome", "incomeMinAnnual", "min_annual_income")
+    valueFrom(row, "minAnnualIncome", "incomeMinAnnual", "min_annual_income","minIncome")
   );
   const creditMin = numberFrom(
-    valueFrom(row, "creditScoreMinExclusive", "minCreditScore", "credit_score_min_exclusive")
+    valueFrom(row, "creditScoreMinExclusive", "minCreditScore", "credit_score_min_exclusive","minCreditScore_exclusive")
   );
   const creditMax = numberFrom(
-    valueFrom(row, "creditScoreMaxInclusive", "maxCreditScore", "credit_score_max_inclusive")
+    valueFrom(row, "creditScoreMaxInclusive", "maxCreditScore", "credit_score_max_inclusive","maxCreditScore_inclusive")
   );
   const employmentTypes = listFrom(
     valueFrom(row, "employmentTypes", "employment_types")
-  );
+  )[0]?.split("+").map((type) => type.trim().toLowerCase()) ?? [];
+  
   const allPincodes = booleanFrom(
     valueFrom(row, "allPincodes", "all_pincodes"),
     false
@@ -117,7 +116,6 @@ export function transformLenderRow(
   const missing = [
     !lenderId && "lenderId",
     !name && "name",
-    !code && "code",
     !flow && "flow",
     ageMin === null && "ageMin",
     ageMax === null && "ageMax",
@@ -150,7 +148,6 @@ export function transformLenderRow(
     lender: {
       lenderId: lenderId!,
       name: name!,
-      code: code!,
       isActive: isActive!,
       priority,
       flow: flow as LenderImportResult["lender"]["flow"],

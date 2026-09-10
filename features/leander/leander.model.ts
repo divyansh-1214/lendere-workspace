@@ -5,7 +5,6 @@ export interface ILender extends Document {
 
   // Basic information
   name: string;
-  code: string;
   isActive: boolean;
 
   // Lead distribution priority
@@ -87,14 +86,6 @@ const LenderSchema = new Schema<ILender>(
       trim: true,
     },
 
-    code: {
-      type: String,
-      required: true,
-      unique: true,
-      uppercase: true,
-      trim: true,
-    },
-
     isActive: {
       type: Boolean,
       default: true,
@@ -104,7 +95,7 @@ const LenderSchema = new Schema<ILender>(
     priority: {
       type: Number,
       required: true,
-      default: 999,
+      default: 0,
       index: true,
     },
 
