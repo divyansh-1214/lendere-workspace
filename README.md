@@ -1,4 +1,32 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Lendere authentication API
+
+## Configuration
+
+Create `.env.local`:
+
+```env
+MONGODB_URI=mongodb://127.0.0.1:27017/lendere
+```
+
+Sessions use an `httpOnly`, `secure` cookie named `lendere_session`. The cookie lasts seven days and is invalidated on logout, password reset, expiry, or when the account is disabled.
+
+## Authentication endpoints
+
+- `POST /api/auth/login` with `{ "email", "password" }` creates a session cookie.
+- `POST /api/auth/logout` revokes the current session.
+- `GET /api/auth/session` returns the current user or `401`.
+- `POST /api/auth/forgot-password` with `{ "email" }` creates a one-hour reset token. In development it is returned as `resetToken`; production should deliver it through an email provider.
+- `POST /api/auth/reset-password` with `{ "token", "password" }` consumes the reset token, hashes the password, and revokes existing sessions.
+
+Passwords are hashed with Node `scrypt`; raw passwords and session tokens are never stored in MongoDB.
+
+## Authorization
+
+`/api/users` is protected and only an authenticated `ops_admin` can list or create users. New users require `name`, `email`, `password`, and one of `ops_admin`, `lender_admin`, or `lender_agent`.
+
+For other route handlers, call `getAuthenticatedUser(request)` from `lib/auth.ts`, then use `requireRole(user, ["ops_admin"])` (or the required roles). Always reject a missing user with `401` and an authenticated user without the required role with `403`.
+
+## Development
 
 ## Getting Started
 
