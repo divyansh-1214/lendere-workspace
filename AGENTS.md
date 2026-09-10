@@ -11,6 +11,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 # Lendere Workspace Project Context
 
 Last updated: 2026-09-10
+git_id : 7b21d96ba232d12b2575dc3b5228a655b1c38f68
 
 ## Project Overview
 
@@ -23,8 +24,11 @@ Last updated: 2026-09-10
 - `app/page.tsx`: client-side lead CSV import workspace and upload interaction.
 - `app/globals.css`: global visual system and responsive styling for the workspace.
 - `app/api/leads/route.ts`: lead CSV upload endpoint.
+- `app/api/leander/route.ts`: lender CSV upload endpoint at `POST /api/leander`.
 - `features/leads/lead.model.ts`: Mongoose lead schema and indexes.
 - `features/leads/lead-import.ts`: CSV header normalization, validation, type conversion, and mapping into the lead model shape.
+- `features/leander/leander.model.ts`: untracked lender configuration model with eligibility, routing-flow, geography, lead-limit, preflight, application, and offer settings.
+- `features/leander/leander-import.ts`: lender CSV header normalization, validation, type conversion, and mapping into the lender model shape.
 - `lib/db.ts`: cached Mongoose connection using `MONGODB_URI`.
 - `lib/auth.ts`: session lookup, password hashing, user authorization, and public user helpers.
 - `app/api/auth/**`: login, logout, session, forgot-password, and reset-password endpoints.
@@ -34,10 +38,19 @@ Last updated: 2026-09-10
 
 - Uploads use `POST /api/leads` with a multipart `FormData` field named `file`.
 - Only `.csv` files are accepted. The endpoint parses rows with `neat-csv`, validates each row, and persists valid rows with `Leads.create()`.
-- Required fields are first name, last name, and phone. Header aliases such as `firstName`/`first_name`, `phone`/`mobile`, and `address1`/`address_line_1` are supported.
+- Required fields are `_doc_id`, first name, last name, phone, DOB, credit score, and employment type. Header aliases such as `firstName`/`first_name`, `phone`/`mobile`, `creditScore`/`credit_score`, and `employmentType`/`employmentTypes` are supported.
+- `personal.age` is required and calculated from DOB using the current date; missing, invalid, or future DOB values return a row-level validation error.
+- `credit.creditScore` and `employment.type` are required by the Mongoose schema and importer validation.
+- `_doc_id` is a required top-level lead identifier and must be mapped from the CSV rather than replaced by the phone number.
 - `address1` and `address2` map to one item in the model's `addresses` array as `addressLine1` and `addressLine2`.
 - Invalid rows should return their source CSV row number and an actionable message. Do not silently discard malformed data.
 - Preserve the nested lead model shape (`personal`, `contact`, `addresses`, `employment`, `credit`, `loan`, `identification`, `application`, `attribution`, and `metadata`).
+
+## Lender Eligibility Configuration
+
+- Lender records use the `Lender` Mongoose model and require a unique `lenderId`, name, code, active status, priority, flow, eligibility rules, and timestamp fields.
+- Eligibility includes minimum and maximum age, minimum annual income, credit-score bounds, and supported employment types (`salaried`, `self_employed`, `business`, `professional`).
+- Preserve lender configuration groups (`eligibility`, `geography`, `leadLimits`, `preflight`, `application`, and `offer`) when adding lender operations.
 
 ## Authentication and Authorization
 
@@ -63,3 +76,4 @@ npm run build
 - Keep route handlers responsible for HTTP concerns and feature modules responsible for mapping and domain logic.
 - Preserve the existing visual direction of the import workspace: warm paper background, dark ink text, coral action color, editorial serif headings, and responsive layouts.
 - Avoid logging complete uploaded files or imported personal data in production code.
+- `app/api/leander/routes.ts` remains an unused legacy file; use `app/api/leander/route.ts` for the production App Router endpoint.
