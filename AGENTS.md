@@ -12,8 +12,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Lendere Workspace Project Context
 
-Last updated: 2026-09-10
-git_id : 7b21d96ba232d12b2575dc3b5228a655b1c38f68
+Last updated: 2026-09-11
+git_id : a4da26f7a26e36aa33550b1eb104a0c168cda349
 
 ## Project Overview
 
@@ -29,12 +29,13 @@ git_id : 7b21d96ba232d12b2575dc3b5228a655b1c38f68
 - `app/api/leander/route.ts`: lender CSV upload endpoint at `POST /api/leander`.
 - `features/leads/lead.model.ts`: Mongoose lead schema and indexes.
 - `features/leads/lead-import.ts`: CSV header normalization, validation, type conversion, and mapping into the lead model shape.
-- `features/leander/leander.model.ts`: untracked lender configuration model with eligibility, routing-flow, geography, lead-limit, preflight, application, and offer settings.
+- `features/leander/leander.model.ts`: lender configuration model with eligibility, routing-flow, geography, lead-limit, preflight, application, and offer settings.
+- `features/users/user.register.ts`: typed user creation, password hashing, lender ID validation, and lender existence checks.
 - `features/leander/leander-import.ts`: lender CSV header normalization, validation, type conversion, and mapping into the lender model shape.
 - `lib/db.ts`: cached Mongoose connection using `MONGODB_URI`.
 - `lib/auth.ts`: session lookup, password hashing, user authorization, and public user helpers.
 - `app/api/auth/**`: login, logout, session, forgot-password, and reset-password endpoints.
-- `app/api/users/route.ts`: authenticated user administration endpoint.
+- `app/api/users/route.ts`: user administration endpoint. `GET` is restricted to authenticated `ops_admin` users; keep the same authorization on `POST` before treating it as production-ready.
 
 ## Lead CSV Import Contract
 
@@ -50,7 +51,7 @@ git_id : 7b21d96ba232d12b2575dc3b5228a655b1c38f68
 
 ## Lender Eligibility Configuration
 
-- Lender records use the `Lender` Mongoose model and require a unique `lenderId`, name, code, active status, priority, flow, eligibility rules, and timestamp fields.
+- Lender records use the `Lender` Mongoose model and require a unique `lenderId`, name, active status, priority, flow, eligibility rules, and timestamp fields. The current model does not define a separate `code` field.
 - Eligibility includes minimum and maximum age, minimum annual income, credit-score bounds, and supported employment types (`salaried`, `self_employed`, `business`, `professional`).
 - Preserve lender configuration groups (`eligibility`, `geography`, `leadLimits`, `preflight`, `application`, and `offer`) when adding lender operations.
 
@@ -58,7 +59,7 @@ git_id : 7b21d96ba232d12b2575dc3b5228a655b1c38f68
 
 - Define `MONGODB_URI` in `.env.local`, for example `mongodb://127.0.0.1:27017/lendere`.
 - Protected routes should call `getAuthenticatedUser(request)` from `lib/auth.ts` and enforce roles with `requireRole`.
-- `/api/users` is restricted to authenticated `ops_admin` users.
+- `/api/users` `GET` is restricted to authenticated `ops_admin` users. The `POST` handler must also enforce this before allowing user creation.
 - Preserve `httpOnly` session cookies and never log or persist raw passwords or session tokens.
 
 ## Development Commands
