@@ -4,7 +4,7 @@ import { connectDB } from "@/lib/db";
 import Leads from "@/features/leads/lead.model";
 import Lender from "@/features/leander/leander.model";
 import { transformLeadRow, type CsvRow } from "@/features/leads/lead-import";
-import {getAuthenticatedUser ,requireRole} from "@/lib/auth";
+import { getAuthenticatedUser, requireRole } from "@/lib/auth";
 
 const positiveIntegerQuery = (value: string | null, fallback: number, maximum?: number) => {
   if (value === null || value.trim() === "") return fallback;
@@ -29,12 +29,12 @@ export async function GET(request: NextRequest) {
     const id = currentUser.lenderId?.toString();
     // geting the eligibility of the lender from the database to filter the leads based on the eligibility criteria
     const LenderData = await Lender.findById(id);
-    const ageMin = LenderData? LenderData.eligibility.age.min : 10
-    const ageMax = LenderData? LenderData.eligibility.age.max : 100
-    const minAnnual = LenderData? LenderData.eligibility.income.minAnnual : 10000
-    const creditMin = LenderData? LenderData.eligibility.creditScore.minExclusive : 300
-    const creditMax = LenderData? LenderData.eligibility.creditScore.maxInclusive : 850
-    const employmentTypes = LenderData? LenderData.eligibility.employmentTypes : ["Full-time", "Part-time", "Self-employed", "Unemployed"];
+    const ageMin = LenderData ? LenderData.eligibility.age.min : 10
+    const ageMax = LenderData ? LenderData.eligibility.age.max : 100
+    const minAnnual = LenderData ? LenderData.eligibility.income.minAnnual : 10000
+    const creditMin = LenderData ? LenderData.eligibility.creditScore.minExclusive : 300
+    const creditMax = LenderData ? LenderData.eligibility.creditScore.maxInclusive : 850
+    const employmentTypes = LenderData ? LenderData.eligibility.employmentTypes : ["Full-time", "Part-time", "Self-employed", "Unemployed"];
 
     if (ageMin !== undefined && ageMax !== undefined && ageMin > ageMax) {
       return NextResponse.json(
@@ -118,6 +118,10 @@ export function OPTIONS() {
 
 export async function POST(request: NextRequest) {
   try {
+    const currentUser = await getAuthenticatedUser(request);
+    if (!currentUser || !requireRole(currentUser, ["ops_admin"])) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
     const formData = await request.formData();
     const file = formData.get("file");
 

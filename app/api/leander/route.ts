@@ -42,6 +42,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const currentUser = await getAuthenticatedUser(request);
+    if (!currentUser || !requireRole(currentUser, ["ops_admin"])) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
     const formData = await request.formData();
     const file = formData.get("file");
 
