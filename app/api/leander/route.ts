@@ -5,11 +5,34 @@ import Lender from "@/features/leander/leander.model";
 import { transformLenderRow } from "@/features/leander/leander-import";
 import type { CsvRow } from "@/features/leads/lead-import";
 
-export function GET() {
-  return NextResponse.json({
-    success: true,
-    message: "Lender CSV endpoint is available. Upload a file with POST /api/leander.",
-  });
+export async function GET(request: NextRequest) {
+  try{
+    const lenderId = request.nextUrl.searchParams.get("lenderId") ?? request.nextUrl.searchParams.get("id");
+    if (!lenderId) {
+      return NextResponse.json(
+        { success: false, message: "Missing lenderId parameter" },
+        { status: 400 }
+      );
+    }
+    console.log("lenderId", lenderId);
+    await connectDB();
+    const data = lenderId ? await Lender.findById(lenderId) : null;
+    if (!data) {
+      return NextResponse.json(
+        { success: false, message: "Lender not found" },
+        { status: 404 }
+      );
+    }
+    return NextResponse.json({
+      success: true,
+      data,
+    }, { status: 200 });
+  }catch (error) {
+    return NextResponse.json(
+      { success: false, message: "Failed to fetch lender" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(request: NextRequest) {
