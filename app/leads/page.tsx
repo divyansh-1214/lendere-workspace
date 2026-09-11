@@ -1,6 +1,6 @@
 "use client"
 
-import axios from "axios"; 
+import axios from "axios";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
@@ -40,12 +40,7 @@ export default function LeadsPage() {
     });
     const nextEligibility = lenderResponse.data.data.eligibility as Eligibility;
     const query = new URLSearchParams({
-      ageMin: String(nextEligibility.age.min),
-      ageMax: String(nextEligibility.age.max),
-      minAnnual: String(nextEligibility.income.minAnnual),
-      minExclusive: String(nextEligibility.creditScore.minExclusive),
-      maxInclusive: String(nextEligibility.creditScore.maxInclusive),
-      employmentTypes: nextEligibility.employmentTypes.join(","),
+      id:lenderId,
       page: String(nextPage),
       pageSize: "10",
     });
@@ -58,7 +53,7 @@ export default function LeadsPage() {
     setTotalPages(leadsResponse.data.pagination.totalPages);
     setLoading(false);
   };
-  
+
   useEffect(() => {
     Promise.resolve().then(() => getLeads(1)).catch(() => {
         setError("Unable to load leads right now. Please try again.");
