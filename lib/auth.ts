@@ -61,9 +61,9 @@ export function clearSessionCookie(response: NextResponse) {
 }
 
 export async function getAuthenticatedUser(request: NextRequest) {
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  // const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/, "")?.trim();
   if (!token) return null;
-
   await connectDB();
   const session = await Session.findOne({
     tokenHash: hashToken(token),

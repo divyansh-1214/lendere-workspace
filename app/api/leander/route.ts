@@ -4,10 +4,15 @@ import { connectDB } from "@/lib/db";
 import Lender from "@/features/leander/leander.model";
 import { transformLenderRow } from "@/features/leander/leander-import";
 import type { CsvRow } from "@/features/leads/lead-import";
+import { getAuthenticatedUser, requireRole } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
-  try{
-    const lenderId = request.nextUrl.searchParams.get("lenderId") ?? request.nextUrl.searchParams.get("id");
+  try {
+    const currentUser = await getAuthenticatedUser(request);
+    if (!currentUser || !requireRole(currentUser, ["ops_admin"])) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
+    const lenderId = currentUser.lenderId;
     if (!lenderId) {
       return NextResponse.json(
         { success: false, message: "Missing lenderId parameter" },

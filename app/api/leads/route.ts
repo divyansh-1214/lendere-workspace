@@ -4,17 +4,7 @@ import { connectDB } from "@/lib/db";
 import Leads from "@/features/leads/lead.model";
 import Lender from "@/features/leander/leander.model";
 import { transformLeadRow, type CsvRow } from "@/features/leads/lead-import";
-
-const numberQuery = (value: string | null, field: string) => {
-  if (value === null || value.trim() === "") return undefined;
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) {
-    throw new Error(`${field} must be a valid number`);
-  }
-
-  return parsed;
-};
+import {getAuthenticatedUser ,requireRole} from "@/lib/auth";
 
 const positiveIntegerQuery = (value: string | null, fallback: number, maximum?: number) => {
   if (value === null || value.trim() === "") return fallback;
@@ -27,20 +17,18 @@ const positiveIntegerQuery = (value: string | null, fallback: number, maximum?: 
   return maximum ? Math.min(parsed, maximum) : parsed;
 };
 
-const listQuery = (value: string | null) =>
-  value
-    ?.split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-
 export async function GET(request: NextRequest) {
   try {
+    const currentUser = await getAuthenticatedUser(request);
+    if (!currentUser || !requireRole(currentUser, ["lender_admin"])) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
     const query = request.nextUrl.searchParams;
     const page = positiveIntegerQuery(query.get("page"), 1);
     const pageSize = positiveIntegerQuery(query.get("pageSize"), 10, 100);
-    const id = query.get("id");
+    const id = currentUser.lenderId?.toString();
+    // geting the eligibility of the lender from the database to filter the leads based on the eligibility criteria
     const LenderData = await Lender.findById(id);
-    console.log(LenderData)
     const ageMin = LenderData? LenderData.eligibility.age.min : 10
     const ageMax = LenderData? LenderData.eligibility.age.max : 100
     const minAnnual = LenderData? LenderData.eligibility.income.minAnnual : 10000
