@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
   const { token, expiresAt } = await createSession(user._id);
   const response = NextResponse.json({
     success: true,
-    data: { id: user._id, name: user.name, email: user.email, role: user.role, expiresAt },
+    data: { id: user._id, name: user.name, email: user.email, role: user.role, lenderId:user.lenderId, expiresAt },
   });
   setSessionCookie(response, token, expiresAt);
   return response;

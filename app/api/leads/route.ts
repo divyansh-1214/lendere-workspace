@@ -15,6 +15,17 @@ const numberQuery = (value: string | null, field: string) => {
   return parsed;
 };
 
+const positiveIntegerQuery = (value: string | null, fallback: number, maximum?: number) => {
+  if (value === null || value.trim() === "") return fallback;
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error("page and pageSize must be positive integers");
+  }
+
+  return maximum ? Math.min(parsed, maximum) : parsed;
+};
+
 const listQuery = (value: string | null) =>
   value
     ?.split(",")
@@ -24,6 +35,8 @@ const listQuery = (value: string | null) =>
 export async function GET(request: NextRequest) {
   try {
     const query = request.nextUrl.searchParams;
+    const page = positiveIntegerQuery(query.get("page"), 1);
+    const pageSize = positiveIntegerQuery(query.get("pageSize"), 10, 100);
     const ageMin = numberQuery(query.get("ageMin"), "ageMin");
     const ageMax = numberQuery(query.get("ageMax"), "ageMax");
     const minAnnual = numberQuery(
@@ -81,11 +94,24 @@ export async function GET(request: NextRequest) {
     }
 
     await connectDB();
-      const leads = await Leads.find(filter).sort({ "metadata.createdAt": -1 }).lean();
+    const [totalCount, leads] = await Promise.all([
+      Leads.countDocuments(filter),
+      Leads.find(filter)
+        .sort({ "metadata.createdAt": -1, _id: -1 })
+        .skip((page - 1) * pageSize)
+        .limit(pageSize)
+        .lean(),
+    ]);
 
     return NextResponse.json({
       success: true,
       count: leads.length,
+      totalCount,
+      pagination: {
+        page,
+        pageSize,
+        totalPages: Math.ceil(totalCount / pageSize),
+      },
       filters: { ageMin, ageMax, minAnnual, creditMin, creditMax, employmentTypes },
       data: leads,
     });

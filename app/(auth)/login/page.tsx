@@ -1,9 +1,10 @@
+
 "use client";
 
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-
+import setId from "@/features/temp";
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -27,6 +28,9 @@ export default function LoginPage() {
         setError(data.message ?? "Unable to sign in");
         return;
       }
+      console.log(data);
+      await setId("lenderId",data.data.lenderId);
+      await setId("userId",data.data.id);
       router.push("/");
       router.refresh();
     } catch {
