@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import neatCsv from "neat-csv";
 import { connectDB } from "@/lib/db";
 import Leads from "@/features/leads/lead.model";
+import Lender from "@/features/leander/leander.model";
 import { transformLeadRow, type CsvRow } from "@/features/leads/lead-import";
 
 const numberQuery = (value: string | null, field: string) => {
@@ -37,23 +38,15 @@ export async function GET(request: NextRequest) {
     const query = request.nextUrl.searchParams;
     const page = positiveIntegerQuery(query.get("page"), 1);
     const pageSize = positiveIntegerQuery(query.get("pageSize"), 10, 100);
-    const ageMin = numberQuery(query.get("ageMin"), "ageMin");
-    const ageMax = numberQuery(query.get("ageMax"), "ageMax");
-    const minAnnual = numberQuery(
-      query.get("minAnnual") ?? query.get("minAnnualIncome"),
-      "minAnnual"
-    );
-    const creditMin = numberQuery(
-      query.get("minExclusive") ?? query.get("creditScoreMinExclusive"),
-      "minExclusive"
-    );
-    const creditMax = numberQuery(
-      query.get("maxInclusive") ?? query.get("creditScoreMaxInclusive"),
-      "maxInclusive"
-    );
-    const employmentTypes = listQuery(
-      query.get("employmentTypes") ?? query.get("employmentType")
-    );
+    const id = query.get("id");
+    const LenderData = await Lender.findById(id);
+    console.log(LenderData)
+    const ageMin = LenderData? LenderData.eligibility.age.min : 10
+    const ageMax = LenderData? LenderData.eligibility.age.max : 100
+    const minAnnual = LenderData? LenderData.eligibility.income.minAnnual : 10000
+    const creditMin = LenderData? LenderData.eligibility.creditScore.minExclusive : 300
+    const creditMax = LenderData? LenderData.eligibility.creditScore.maxInclusive : 850
+    const employmentTypes = LenderData? LenderData.eligibility.employmentTypes : ["Full-time", "Part-time", "Self-employed", "Unemployed"];
 
     if (ageMin !== undefined && ageMax !== undefined && ageMin > ageMax) {
       return NextResponse.json(
