@@ -36,16 +36,18 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
-    if (!currentUser || !requireRole(currentUser, ["ops_admin"])) {
+    if (!currentUser || !requireRole(currentUser, ["ops_admin","lender_admin"])) {
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }
-    await connectDB();
-
     const body = (await request.json()) as CreateUserInput;
     if (!body.name || !body.email || !body.password || !["ops_admin", "lender_admin", "lender_agent"].includes(body.role)) {
       return NextResponse.json({ success: false, message: "name, email, password, and a valid role are required" }, { status: 400 });
     }
-
+    if ((body.role === "lender_admin" && !requireRole(currentUser, ["ops_admin"]))
+      || (body.role === "ops_admin" && !requireRole(currentUser, ["ops_admin", "lender_admin"]))) {
+      return NextResponse.json({ success: false, message: "Forbidden to create user with this role" }, { status: 403 });
+    }
+    await connectDB();
     const user = await createUser(body);
 
     return NextResponse.json(

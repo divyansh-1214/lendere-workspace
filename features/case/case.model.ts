@@ -1,0 +1,95 @@
+import mongoose, { Schema, model, models } from "mongoose";
+
+const CaseSchema = new Schema(
+  {
+    leadId: {
+      type: Schema.Types.ObjectId,
+      ref: "Lead",
+      required: true,
+      index: true,
+    },
+
+    lenderId: {
+      type: Schema.Types.ObjectId,
+      ref: "Lender",
+      required: true,
+      index: true,
+    },
+    
+    adminId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    agentId: {
+      type: Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+      index: true,
+    },
+
+    lenderAdminId: {
+      type: Schema.Types.ObjectId,
+      ref: "LenderAdmin",
+      required: true,
+      index: true,
+    },
+
+    workflowId: {
+      type: Schema.Types.ObjectId,
+      ref: "Workflow",
+      required: true,
+      index: true,
+    },
+
+    currentNodeId: {
+      type: Schema.Types.ObjectId,
+      ref: "WorkflowNode",
+      default: null,
+      index: true,
+    },
+
+    status: {
+      type: String,
+      enum: [
+        "ASSIGNED",
+        "IN_PROGRESS",
+        "COMPLETED",
+        "REJECTED",
+        "CANCELLED",
+      ],
+      default: "ASSIGNED",
+      required: true,
+      index: true,
+    },
+
+    // ise ek value add kar sakte hai jo current node to point karega 
+    currentNode: {
+      type: Schema.Types.ObjectId,
+      ref: "WorkflowNode",
+      default: null,
+    },
+    
+    assignedAt: {
+      type: Date,
+      default: Date.now,
+    },
+
+    startedAt: {
+      type: Date,
+      default: null,
+    },
+
+    completedAt: {
+      type: Date,
+      default: null,
+    },
+  },
+  {
+    timestamps: true,
+  }
+);
+
+export const Case = models.Case || model("Case", CaseSchema);

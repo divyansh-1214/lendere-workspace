@@ -793,6 +793,47 @@ transform .2s;
     text-decoration-color:var(--coral);
     text-underline-offset:4px;
 }
+.back-link {
+    display:inline-block;
+    margin-bottom:34px;
+    color:var(--muted);
+    font:11px 'DM Mono',
+monospace;
+    text-decoration:none;
+    text-transform:uppercase;
+    letter-spacing:.04em;
+}
+.back-link:hover {
+    color:var(--coral);
+}
+.form-state {
+    padding:14px 0;
+    color:var(--muted);
+    font-size:13px;
+}
+.auth-success {
+    margin:0;
+    padding:12px 14px;
+    border-left:3px solid #79a66d;
+    background:#f1f8ee;
+    color:#527248;
+    font-size:12px;
+    line-height:1.45;
+}
+.text-button {
+    display:block;
+    border:0;
+    margin-top:10px;
+    padding:0;
+    background:transparent;
+    color:var(--ink);
+    cursor:pointer;
+    font-size:12px;
+    font-weight:700;
+    text-decoration:underline;
+    text-decoration-color:var(--coral);
+    text-underline-offset:4px;
+}
 @media (max-width:760px) {
     .auth-shell {
         display:block;
