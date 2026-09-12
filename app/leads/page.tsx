@@ -2,7 +2,7 @@
 
 import axios from "axios";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 type Lead = {
   _doc_id?: string;
@@ -10,7 +10,8 @@ type Lead = {
   contact?: { phone?: string };
   employment?: { type?: string | null; income?: number | null };
   credit?: { creditScore?: number | null };
-  addresses?: { city?: string | null; state?: string | null }[];
+  addresses?: { city?: string | null; state?: string | null; pinCode?: string | null }[];
+  loan?: { amount?: number | null; purpose?: string | null };
 };
 
 type Eligibility = {
@@ -18,6 +19,42 @@ type Eligibility = {
   income: { minAnnual: number };
   creditScore: { minExclusive: number; maxInclusive: number };
   employmentTypes: string[];
+};
+
+type LeadFilters = {
+  search: string;
+  ageMin: string;
+  ageMax: string;
+  employmentType: string[];
+  incomeMin: string;
+  incomeMax: string;
+  creditMin: string;
+  creditMax: string;
+  state: string;
+  city: string;
+  pincode: string;
+  loanAmountMin: string;
+  loanAmountMax: string;
+  loanPurpose: string;
+  sort: string;
+};
+
+const initialFilters: LeadFilters = {
+  search: "",
+  ageMin: "",
+  ageMax: "",
+  employmentType: [],
+  incomeMin: "",
+  incomeMax: "",
+  creditMin: "",
+  creditMax: "",
+  state: "",
+  city: "",
+  pincode: "",
+  loanAmountMin: "",
+  loanAmountMax: "",
+  loanPurpose: "",
+  sort: "newest",
 };
 
 export default function LeadsPage() {
@@ -28,26 +65,35 @@ export default function LeadsPage() {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filters, setFilters] = useState<LeadFilters>(initialFilters);
 
-  const getLeads = async (nextPage: number) => {
+  const getLeads = async (nextPage: number, nextFilters = filters) => {
     setLoading(true);
     setError("");
 
-    const sessionResponse = await axios.get("/api/auth/session");
-    const lenderId = sessionResponse.data.data.lenderId;
-    const lenderResponse = await axios.get("/api/leander", {
-      params: { lenderId },
-    });
-    const nextEligibility = lenderResponse.data.data.eligibility as Eligibility;
-    const query = new URLSearchParams({
-      id:lenderId,
-      page: String(nextPage),
-      pageSize: "10",
+    const query = new URLSearchParams({ page: String(nextPage), pageSize: "10" });
+    Object.entries(nextFilters).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        value.forEach((item) => query.append(key, item));
+      } else if (value) {
+        query.set(key, value);
+      }
     });
 
     const leadsResponse = await axios.get(`/api/leads?${query.toString()}`);
     setLeads(leadsResponse.data.data);
-    setEligibility(nextEligibility);
+    const apiEligibility = leadsResponse.data.filters?.eligibility;
+    if (apiEligibility) {
+      setEligibility({
+        age: { min: apiEligibility.ageMin, max: apiEligibility.ageMax },
+        income: { minAnnual: apiEligibility.incomeMin },
+        creditScore: {
+          minExclusive: apiEligibility.creditMinExclusive,
+          maxInclusive: apiEligibility.creditMaxInclusive,
+        },
+        employmentTypes: apiEligibility.employmentTypes,
+      });
+    }
     setPage(leadsResponse.data.pagination.page);
     setTotalCount(leadsResponse.data.totalCount);
     setTotalPages(leadsResponse.data.pagination.totalPages);
@@ -56,14 +102,34 @@ export default function LeadsPage() {
 
   useEffect(() => {
     Promise.resolve().then(() => getLeads(1)).catch(() => {
-        setError("Unable to load leads right now. Please try again.");
-        setLoading(false);
-      });
+      setError("Unable to load leads right now. Please try again.");
+      setLoading(false);
+    });
   }, []);
 
   const changePage = (nextPage: number) => {
     getLeads(nextPage).catch(() => {
       setError("Unable to load this page. Please try again.");
+      setLoading(false);
+    });
+  };
+
+  const updateFilter = (name: keyof LeadFilters, value: string | string[]) => {
+    setFilters((current) => ({ ...current, [name]: value }));
+  };
+
+  const submitFilters = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    getLeads(1, filters).catch(() => {
+      setError("Unable to apply these filters right now. Please try again.");
+      setLoading(false);
+    });
+  };
+
+  const clearFilters = () => {
+    setFilters(initialFilters);
+    getLeads(1, initialFilters).catch(() => {
+      setError("Unable to reset filters right now. Please try again.");
       setLoading(false);
     });
   };
@@ -105,6 +171,62 @@ export default function LeadsPage() {
           </div>
         </section>
       )}
+
+      <form className="lead-filters" onSubmit={submitFilters}>
+        <div className="lead-filters-heading">
+          <div>
+            <span className="section-kicker">refine results</span>
+            <h2>Find a lead</h2>
+          </div>
+          <button className="filter-clear" type="button" onClick={clearFilters}>Clear all</button>
+        </div>
+
+        <label className="filter-search">
+          <span>Search name, phone, or lead ID</span>
+          <input value={filters.search} onChange={(event) => updateFilter("search", event.target.value)} placeholder="Start typing..." />
+        </label>
+
+        <div className="filter-groups">
+          <fieldset><legend>Profile</legend>
+            <div className="filter-fields">
+              <label>Age from<input type="number" min="0" value={filters.ageMin} onChange={(event) => updateFilter("ageMin", event.target.value)} /></label>
+              <label>Age to<input type="number" min="0" value={filters.ageMax} onChange={(event) => updateFilter("ageMax", event.target.value)} /></label>
+              <label>Income from<input type="number" min="0" value={filters.incomeMin} onChange={(event) => updateFilter("incomeMin", event.target.value)} /></label>
+              <label>Income to<input type="number" min="0" value={filters.incomeMax} onChange={(event) => updateFilter("incomeMax", event.target.value)} /></label>
+            </div>
+            <label className="filter-wide">Employment type
+              <select multiple value={filters.employmentType} onChange={(event) => updateFilter("employmentType", Array.from(event.target.selectedOptions, (option) => option.value))}>
+                {(eligibility?.employmentTypes || []).map((type) => <option key={type} value={type}>{type.replaceAll("_", " ")}</option>)}
+              </select>
+            </label>
+          </fieldset>
+
+          <fieldset><legend>Credit &amp; loan</legend>
+            <div className="filter-fields">
+              <label>Credit from<input type="number" min="0" value={filters.creditMin} onChange={(event) => updateFilter("creditMin", event.target.value)} /></label>
+              <label>Credit to<input type="number" min="0" value={filters.creditMax} onChange={(event) => updateFilter("creditMax", event.target.value)} /></label>
+              <label>Loan amount from<input type="number" min="0" value={filters.loanAmountMin} onChange={(event) => updateFilter("loanAmountMin", event.target.value)} /></label>
+              <label>Loan amount to<input type="number" min="0" value={filters.loanAmountMax} onChange={(event) => updateFilter("loanAmountMax", event.target.value)} /></label>
+            </div>
+            <label className="filter-wide">Loan purpose<input value={filters.loanPurpose} onChange={(event) => updateFilter("loanPurpose", event.target.value)} /></label>
+          </fieldset>
+
+          <fieldset><legend>Location</legend>
+            <div className="filter-fields">
+              <label>State<input value={filters.state} onChange={(event) => updateFilter("state", event.target.value)} /></label>
+              <label>City<input value={filters.city} onChange={(event) => updateFilter("city", event.target.value)} /></label>
+              <label>Pincode<input value={filters.pincode} onChange={(event) => updateFilter("pincode", event.target.value)} /></label>
+            </div>
+          </fieldset>
+        </div>
+
+        <div className="filter-actions">
+          <label>Sort by<select value={filters.sort} onChange={(event) => updateFilter("sort", event.target.value)}>
+            <option value="newest">Newest</option><option value="oldest">Oldest</option><option value="highestCreditScore">Highest credit score</option><option value="highestIncome">Highest income</option>
+          </select></label>
+          <button className="filter-apply" type="submit" disabled={loading}>Apply filters <span>→</span></button>
+        </div>
+      </form>
 
       <section className="leads-content">
         {error && <p className="leads-error">{error}</p>}

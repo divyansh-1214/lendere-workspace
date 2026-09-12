@@ -61,7 +61,9 @@ export function clearSessionCookie(response: NextResponse) {
 }
 
 export async function getAuthenticatedUser(request: NextRequest) {
-  const token = request.cookies.get(SESSION_COOKIE)?.value;
+  const authtoken = request.headers.get("Authorization")?.replace(/^Bearer\s+/, "")?.trim();
+
+  const token = authtoken? authtoken: request.cookies.get(SESSION_COOKIE)?.value;
   // store the as the token in the auth header when your are testing with the postman
   // const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/, "")?.trim();
   if (!token) return null;
@@ -70,7 +72,6 @@ export async function getAuthenticatedUser(request: NextRequest) {
     tokenHash: hashToken(token),
     expiresAt: { $gt: new Date() },
   });
-  if (!session) return null;
 
   const user = await User.findById(session.userId).select("-passwordHash");
   if (!user || user.status !== "active") return null;

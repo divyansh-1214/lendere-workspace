@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SortOrder } from "mongoose";
 import neatCsv from "neat-csv";
 import { connectDB } from "@/lib/db";
 import Leads from "@/features/leads/lead.model";
@@ -17,68 +18,166 @@ const positiveIntegerQuery = (value: string | null, fallback: number, maximum?: 
   return maximum ? Math.min(parsed, maximum) : parsed;
 };
 
+const optionalNumberQuery = (value: string | null, name: string, minimum = 0) => {
+  if (value === null || value.trim() === "") return undefined;
+
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < minimum) {
+    throw new Error(`${name} must be a number greater than or equal to ${minimum}`);
+  }
+
+  return parsed;
+};
+
+const optionalTextQuery = (value: string | null) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : undefined;
+};
+
+const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const listQuery = (query: URLSearchParams, name: string) =>
+  query.getAll(name)
+    .flatMap((value) => value.split(","))
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+const sortQuery = (value: string | undefined): Record<string, SortOrder> => {
+  switch (value) {
+    case "oldest":
+      return { "metadata.createdAt": 1, _id: 1 };
+    case "highestCreditScore":
+      return { "credit.creditScore": -1, "metadata.createdAt": -1, _id: -1 };
+    case "highestIncome":
+      return { "employment.income": -1, "metadata.createdAt": -1, _id: -1 };
+    case undefined:
+    case "newest":
+      return { "metadata.createdAt": -1, _id: -1 };
+    default:
+      throw new Error("sort must be newest, oldest, highestCreditScore, or highestIncome");
+  }
+};
+
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
-    if (!currentUser || !requireRole(currentUser, ["lender_admin"])) {
+    console.log("currentUser", currentUser);
+    if (!currentUser || !requireRole(currentUser, ["lender_admin","ops_admin"])) {
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }
     const query = request.nextUrl.searchParams;
     const page = positiveIntegerQuery(query.get("page"), 1);
     const pageSize = positiveIntegerQuery(query.get("pageSize"), 10, 100);
     const id = currentUser.lenderId?.toString();
-    // geting the eligibility of the lender from the database to filter the leads based on the eligibility criteria
-    const LenderData = await Lender.findById(id);
-    const ageMin = LenderData ? LenderData.eligibility.age.min : 10
-    const ageMax = LenderData ? LenderData.eligibility.age.max : 100
-    const minAnnual = LenderData ? LenderData.eligibility.income.minAnnual : 10000
-    const creditMin = LenderData ? LenderData.eligibility.creditScore.minExclusive : 300
-    const creditMax = LenderData ? LenderData.eligibility.creditScore.maxInclusive : 850
-    const employmentTypes = LenderData ? LenderData.eligibility.employmentTypes : ["Full-time", "Part-time", "Self-employed", "Unemployed"];
+    const lenderData = await Lender.findById(id).lean();
+    const eligibility = lenderData?.eligibility ?? {
+      age: { min: 10, max: 100 },
+      income: { minAnnual: 10000 },
+      creditScore: { minExclusive: 300, maxInclusive: 850 },
+      employmentTypes: ["salaried", "self_employed", "business", "professional"],
+    };
+    const eligibleEmploymentTypes = eligibility.employmentTypes as string[];
 
-    if (ageMin !== undefined && ageMax !== undefined && ageMin > ageMax) {
-      return NextResponse.json(
-        { success: false, message: "ageMin cannot exceed ageMax" },
-        { status: 400 }
-      );
+    const requestedAgeMin = optionalNumberQuery(query.get("ageMin"), "ageMin");
+    const requestedAgeMax = optionalNumberQuery(query.get("ageMax"), "ageMax");
+    const requestedIncomeMin = optionalNumberQuery(query.get("incomeMin"), "incomeMin");
+    const requestedIncomeMax = optionalNumberQuery(query.get("incomeMax"), "incomeMax");
+    const requestedCreditMin = optionalNumberQuery(query.get("creditMin"), "creditMin");
+    const requestedCreditMax = optionalNumberQuery(query.get("creditMax"), "creditMax");
+    const requestedLoanAmountMin = optionalNumberQuery(query.get("loanAmountMin"), "loanAmountMin");
+    const requestedLoanAmountMax = optionalNumberQuery(query.get("loanAmountMax"), "loanAmountMax");
+    const loanAmountMin = requestedLoanAmountMin;
+    const loanAmountMax = requestedLoanAmountMax;
+    const requestedEmploymentTypes = listQuery(query, "employmentType");
+    const search = optionalTextQuery(query.get("search"));
+    const state = optionalTextQuery(query.get("state"));
+    const city = optionalTextQuery(query.get("city"));
+    const pincode = optionalTextQuery(query.get("pincode"));
+    const loanPurpose = optionalTextQuery(query.get("loanPurpose"));
+    const sort = sortQuery(optionalTextQuery(query.get("sort")));
+
+    if (requestedAgeMin !== undefined && requestedAgeMax !== undefined && requestedAgeMin > requestedAgeMax) {
+      throw new Error("ageMin cannot exceed ageMax");
+    }
+    if (requestedIncomeMin !== undefined && requestedIncomeMax !== undefined && requestedIncomeMin > requestedIncomeMax) {
+      throw new Error("incomeMin cannot exceed incomeMax");
+    }
+    if (requestedCreditMin !== undefined && requestedCreditMax !== undefined && requestedCreditMin >= requestedCreditMax) {
+      throw new Error("creditMin must be less than creditMax");
+    }
+    if (requestedLoanAmountMin !== undefined && requestedLoanAmountMax !== undefined && requestedLoanAmountMin > requestedLoanAmountMax) {
+      throw new Error("loanAmountMin cannot exceed loanAmountMax");
     }
 
-    if (
-      creditMin !== undefined &&
-      creditMax !== undefined &&
-      creditMin >= creditMax
-    ) {
-      return NextResponse.json(
-        { success: false, message: "minExclusive must be less than maxInclusive" },
-        { status: 400 }
-      );
+    if (requestedEmploymentTypes.length > 0 &&
+      requestedEmploymentTypes.every((type) => !eligibleEmploymentTypes.includes(type))) {
+      throw new Error("The requested employment type is outside lender eligibility");
     }
 
-    const filter: Record<string, unknown> = {};
-    if (ageMin !== undefined) filter["personal.age"] = { $gte: ageMin };
-    if (ageMax !== undefined) {
-      filter["personal.age"] = {
-        ...(filter["personal.age"] as Record<string, number> | undefined),
-        $lte: ageMax,
+    const eligibilityFilter: Record<string, unknown> = {
+      "personal.age": { $gte: eligibility.age.min, $lte: eligibility.age.max },
+      "employment.income": { $gte: eligibility.income.minAnnual },
+      "credit.creditScore": {
+        $gt: eligibility.creditScore.minExclusive,
+        $lte: eligibility.creditScore.maxInclusive,
+      },
+      "employment.type": { $in: eligibleEmploymentTypes },
+    };
+    const requestedFilter: Record<string, unknown> = {};
+
+    if (requestedAgeMin !== undefined || requestedAgeMax !== undefined) {
+      requestedFilter["personal.age"] = {
+        ...(requestedAgeMin !== undefined ? { $gte: requestedAgeMin } : {}),
+        ...(requestedAgeMax !== undefined ? { $lte: requestedAgeMax } : {}),
       };
     }
-    if (minAnnual !== undefined) filter["employment.income"] = { $gte: minAnnual };
-    if (creditMin !== undefined) filter["credit.creditScore"] = { $gt: creditMin };
-    if (creditMax !== undefined) {
-      filter["credit.creditScore"] = {
-        ...(filter["credit.creditScore"] as Record<string, number> | undefined),
-        $lte: creditMax,
+    if (requestedIncomeMin !== undefined || requestedIncomeMax !== undefined) {
+      requestedFilter["employment.income"] = {
+        ...(requestedIncomeMin !== undefined ? { $gte: requestedIncomeMin } : {}),
+        ...(requestedIncomeMax !== undefined ? { $lte: requestedIncomeMax } : {}),
       };
     }
-    if (employmentTypes?.length) {
-      filter["employment.type"] = { $in: employmentTypes };
+    if (requestedCreditMin !== undefined || requestedCreditMax !== undefined) {
+      requestedFilter["credit.creditScore"] = {
+        ...(requestedCreditMin !== undefined ? { $gte: requestedCreditMin } : {}),
+        ...(requestedCreditMax !== undefined ? { $lte: requestedCreditMax } : {}),
+      };
     }
+    if (requestedEmploymentTypes.length) {
+      requestedFilter["employment.type"] = { $in: requestedEmploymentTypes };
+    }
+    if (search) {
+      const searchRegex = { $regex: escapeRegex(search), $options: "i" };
+      requestedFilter.$or = [
+        { _doc_id: searchRegex },
+        { "contact.phone": searchRegex },
+        { "personal.firstName": searchRegex },
+        { "personal.lastName": searchRegex },
+      ];
+    }
+    if (state || city || pincode) {
+      const addressFilter: Record<string, unknown> = {};
+      if (state) addressFilter.state = { $regex: escapeRegex(state), $options: "i" };
+      if (city) addressFilter.city = { $regex: escapeRegex(city), $options: "i" };
+      if (pincode) addressFilter.pinCode = { $regex: escapeRegex(pincode), $options: "i" };
+      requestedFilter.addresses = { $elemMatch: addressFilter };
+    }
+    if (loanAmountMin !== undefined || loanAmountMax !== undefined) {
+      requestedFilter["loan.amount"] = {
+        ...(loanAmountMin !== undefined ? { $gte: loanAmountMin } : {}),
+        ...(loanAmountMax !== undefined ? { $lte: loanAmountMax } : {}),
+      };
+    }
+    if (loanPurpose) requestedFilter["loan.purpose"] = { $regex: escapeRegex(loanPurpose), $options: "i" };
+    const filter = Object.keys(requestedFilter).length
+      ? { $and: [eligibilityFilter, requestedFilter] }
+      : eligibilityFilter;
 
     await connectDB();
     const [totalCount, leads] = await Promise.all([
       Leads.countDocuments(filter),
       Leads.find(filter)
-        .sort({ "metadata.createdAt": -1, _id: -1 })
+        .sort(sort)
         .skip((page - 1) * pageSize)
         .limit(pageSize)
         .lean(),
@@ -93,7 +192,34 @@ export async function GET(request: NextRequest) {
         pageSize,
         totalPages: Math.ceil(totalCount / pageSize),
       },
-      filters: { ageMin, ageMax, minAnnual, creditMin, creditMax, employmentTypes },
+      filters: {
+        search,
+        eligibility: {
+          ageMin: eligibility.age.min,
+          ageMax: eligibility.age.max,
+          incomeMin: eligibility.income.minAnnual,
+          creditMinExclusive: eligibility.creditScore.minExclusive,
+          creditMaxInclusive: eligibility.creditScore.maxInclusive,
+          employmentTypes: eligibleEmploymentTypes,
+        },
+        requested: {
+          search,
+          ageMin: requestedAgeMin,
+          ageMax: requestedAgeMax,
+          incomeMin: requestedIncomeMin,
+          incomeMax: requestedIncomeMax,
+          creditMin: requestedCreditMin,
+          creditMax: requestedCreditMax,
+          employmentTypes: requestedEmploymentTypes,
+          loanAmountMin,
+          loanAmountMax,
+          loanPurpose,
+        },
+        state,
+        city,
+        pincode,
+        sort: query.get("sort") || "newest",
+      },
       data: leads,
     });
   } catch (error) {
