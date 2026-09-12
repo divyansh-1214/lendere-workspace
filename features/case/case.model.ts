@@ -1,10 +1,10 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import { Schema, model, models } from "mongoose";
 
 const CaseSchema = new Schema(
   {
     leadId: {
       type: Schema.Types.ObjectId,
-      ref: "Lead",
+      ref: "Leads",
       required: true,
       index: true,
     },
@@ -12,13 +12,6 @@ const CaseSchema = new Schema(
     lenderId: {
       type: Schema.Types.ObjectId,
       ref: "Lender",
-      required: true,
-      index: true,
-    },
-    
-    adminId: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
       required: true,
       index: true,
     },
@@ -32,7 +25,7 @@ const CaseSchema = new Schema(
 
     lenderAdminId: {
       type: Schema.Types.ObjectId,
-      ref: "LenderAdmin",
+      ref: "User",
       required: true,
       index: true,
     },
@@ -40,7 +33,7 @@ const CaseSchema = new Schema(
     workflowId: {
       type: Schema.Types.ObjectId,
       ref: "Workflow",
-      required: true,
+      default: null,
       index: true,
     },
 
@@ -65,13 +58,13 @@ const CaseSchema = new Schema(
       index: true,
     },
 
-    // ise ek value add kar sakte hai jo current node to point karega 
+    // ise ek value add kar sakte hai jo current node to point karega
     currentNode: {
       type: Schema.Types.ObjectId,
       ref: "WorkflowNode",
       default: null,
     },
-    
+
     assignedAt: {
       type: Date,
       default: Date.now,
@@ -92,4 +85,7 @@ const CaseSchema = new Schema(
   }
 );
 
+CaseSchema.index({ lenderId: 1, leadId: 1 }, { unique: true });
+
 export const Case = models.Case || model("Case", CaseSchema);
+export default Case;

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 type Lead = {
+  _id?: string;
   _doc_id?: string;
   personal?: { firstName?: string; lastName?: string; age?: number };
   contact?: { phone?: string };
@@ -13,6 +14,8 @@ type Lead = {
   addresses?: { city?: string | null; state?: string | null; pinCode?: string | null }[];
   loan?: { amount?: number | null; purpose?: string | null };
 };
+
+type Agent = { _id: string; name: string; email: string };
 
 type Eligibility = {
   age: { min: number; max: number };
@@ -66,6 +69,14 @@ export default function LeadsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState<LeadFilters>(initialFilters);
+  const [freeLeads, setFreeLeads] = useState<Lead[]>([]);
+  const [freeLeadCount, setFreeLeadCount] = useState(0);
+  const [freeLeadsLoading, setFreeLeadsLoading] = useState(true);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [selectedAgents, setSelectedAgents] = useState<Record<string, string>>({});
+  const [assigningLead, setAssigningLead] = useState<string | null>(null);
+  const [assignmentError, setAssignmentError] = useState("");
+  const [assignmentNotice, setAssignmentNotice] = useState("");
 
   const getLeads = async (nextPage: number, nextFilters = filters) => {
     setLoading(true);
@@ -105,7 +116,41 @@ export default function LeadsPage() {
       setError("Unable to load leads right now. Please try again.");
       setLoading(false);
     });
+    axios.get("/api/cases?page=1&pageSize=10").then((response) => {
+      setFreeLeads(response.data.data || []);
+      setFreeLeadCount(response.data.totalCount || 0);
+    }).catch(() => {
+      setFreeLeads([]);
+      setFreeLeadCount(0);
+    }).finally(() => setFreeLeadsLoading(false));
+    axios.get("/api/users/agents").then((response) => setAgents(response.data.data || [])).catch(() => setAgents([]));
   }, []);
+
+  const assignLead = async (leadId: string) => {
+    const agentId = selectedAgents[leadId];
+    if (!agentId) return;
+
+    setAssigningLead(leadId);
+    setAssignmentError("");
+    setAssignmentNotice("");
+    try {
+      await axios.post("/api/cases", { leadId, agentId });
+      setFreeLeads((current) => current.filter((lead) => lead._id !== leadId));
+      setFreeLeadCount((current) => Math.max(current - 1, 0));
+      setSelectedAgents((current) => {
+        const next = { ...current };
+        delete next[leadId];
+        return next;
+      });
+      setAssignmentNotice("Lead assigned successfully.");
+    } catch (assignmentRequestError) {
+      setAssignmentError(axios.isAxiosError(assignmentRequestError)
+        ? assignmentRequestError.response?.data?.message || "Unable to assign this lead."
+        : "Unable to assign this lead.");
+    } finally {
+      setAssigningLead(null);
+    }
+  };
 
   const changePage = (nextPage: number) => {
     getLeads(nextPage).catch(() => {
@@ -169,6 +214,46 @@ export default function LeadsPage() {
             <span>Credit <strong>{eligibility.creditScore.minExclusive}+ to {eligibility.creditScore.maxInclusive}</strong></span>
             <span>Employment <strong>{eligibility.employmentTypes.join(", ")}</strong></span>
           </div>
+        </section>
+      )}
+
+      {agents.length > 0 && (
+        <section className="assignment-panel" aria-labelledby="assignment-title">
+          <div className="assignment-panel-heading">
+            <div>
+              <span className="section-kicker">lender admin workspace</span>
+              <h2 id="assignment-title">Assign free leads</h2>
+              <p>Match an available borrower with one of your active agents.</p>
+            </div>
+            <strong>{freeLeadCount}<span> free leads</span></strong>
+          </div>
+          {assignmentError && <p className="leads-error">{assignmentError}</p>}
+          {assignmentNotice && <p className="assignment-notice">{assignmentNotice}</p>}
+          {freeLeadsLoading ? <p className="leads-state">Loading free leads...</p> : freeLeads.length === 0 ? <p className="leads-state">There are no free eligible leads right now.</p> : (
+            <div className="assignment-list">
+              {freeLeads.map((lead) => {
+                const leadId = lead._id || "";
+                return <article className="assignment-row" key={leadId}>
+                  <div className="assignment-borrower">
+                    <strong>{lead.personal?.firstName} {lead.personal?.lastName}</strong>
+                    <small>{lead._doc_id} · {lead.contact?.phone || "No phone"}</small>
+                  </div>
+                  <div className="assignment-summary">
+                    <span>{lead.personal?.age ?? "—"} yrs</span>
+                    <span>{lead.employment?.type?.replace("_", " ") || "—"}</span>
+                    <span>{lead.credit?.creditScore ?? "—"} credit</span>
+                  </div>
+                  <div className="assignment-controls">
+                    <select aria-label={`Choose agent for ${lead.personal?.firstName || "lead"}`} value={selectedAgents[leadId] || ""} onChange={(event) => setSelectedAgents((current) => ({ ...current, [leadId]: event.target.value }))}>
+                      <option value="">Choose agent</option>
+                      {agents.map((agent) => <option key={agent._id} value={agent._id}>{agent.name}</option>)}
+                    </select>
+                    <button type="button" onClick={() => assignLead(leadId)} disabled={!selectedAgents[leadId] || assigningLead === leadId}>{assigningLead === leadId ? "Assigning..." : "Assign lead →"}</button>
+                  </div>
+                </article>;
+              })}
+            </div>
+          )}
         </section>
       )}
 

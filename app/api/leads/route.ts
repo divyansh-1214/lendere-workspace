@@ -61,7 +61,6 @@ const sortQuery = (value: string | undefined): Record<string, SortOrder> => {
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
-    console.log("currentUser", currentUser);
     if (!currentUser || !requireRole(currentUser, ["lender_admin","ops_admin"])) {
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }

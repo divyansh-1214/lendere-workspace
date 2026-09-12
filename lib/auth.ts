@@ -72,6 +72,7 @@ export async function getAuthenticatedUser(request: NextRequest) {
     tokenHash: hashToken(token),
     expiresAt: { $gt: new Date() },
   });
+  if (!session) return null;
 
   const user = await User.findById(session.userId).select("-passwordHash");
   if (!user || user.status !== "active") return null;
