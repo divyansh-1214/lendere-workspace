@@ -30,16 +30,9 @@ const CaseSchema = new Schema(
       index: true,
     },
 
-    workflowId: {
-      type: Schema.Types.ObjectId,
-      ref: "Workflow",
-      default: null,
-      index: true,
-    },
-
     currentNodeId: {
       type: Schema.Types.ObjectId,
-      ref: "WorkflowNode",
+      ref: "CaseNode",
       default: null,
       index: true,
     },
@@ -56,6 +49,18 @@ const CaseSchema = new Schema(
       default: "ASSIGNED",
       required: true,
       index: true,
+    },
+
+    finalOutcome: {
+      code: {
+        type: String,
+        default: null
+      },
+
+      label: {
+        type: String,
+        default: null
+      }
     },
 
     assignedAt: {

@@ -22,7 +22,7 @@ const eligibilityFor = (lender: { eligibility?: { age: { min: number; max: numbe
     "employment.type": { $in: eligibility.employmentTypes },
   };
 };
-
+//can se all the lead that has been assigned to the agent and also can see all the lead that is free and eligible for the lender. The agent can assign the lead to himself. The admin can assign the lead to any agent of his lender. The agent can only see the leads that are assigned to him. The admin can see all the leads that are assigned to any agent of his lender.
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
