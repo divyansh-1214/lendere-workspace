@@ -1,5 +1,5 @@
-`GET /api/leads` requires an authenticated `lender_admin` session and derives the lender from `currentUser.lenderId`; caller-supplied lender IDs are ignored. It supports `page` and `pageSize`; `pageSize` defaults to 10 and is capped at 100.
-Lead matching uses inclusive age bounds, an income minimum, a credit score greater than `minExclusive` and at or below `maxInclusive`, and employment types from the lender configuration. The response returns the current page in `data`, the number of returned records in `count`, the full match count in `totalCount`, the resolved `filters`, and `pagination: { page, pageSize, totalPages }`.
+`GET /api/leads` requires an authenticated `lender_admin` or `ops_admin` session and derives the lender from `currentUser.lenderId`; caller-supplied lender IDs are ignored. It supports `page` and `pageSize`; `pageSize` defaults to 10 and is capped at 100.
+Lead matching uses lender eligibility rules (age, income, credit score, employment types) combined with optional user-supplied filters. Advanced filters include age range, income range, credit score range, employment type(s), location (state, city, pincode), loan amount range, and loan purpose. Search queries match against `_doc_id`, phone, first name, and last name. Sorting options are `newest` (default), `oldest`, `highestCreditScore`, and `highestIncome`. The response returns the current page in `data`, the number of returned records in `count`, the full match count in `totalCount`, and `pagination: { page, pageSize, totalPages }`.
 <!-- BEGIN:nextjs-agent-rules -->
 
 # This is NOT the Next.js you know
@@ -12,13 +12,14 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Lendere Workspace Project Context
 
-Last updated: 2026-09-11
-git_id: 95e4d547336a8a816d310fb94d863b570d428ba0
+Last updated: 2026-09-12
+git_id: 8c05ce937830e39e06f57e64c6ca9ec41af26d5c
 
 ## Project Overview
 
 - This is a Next.js 16.3.4 App Router application using React 19.2.8, TypeScript 5, Tailwind CSS 4, MongoDB 7, Mongoose 9.9.5, Axios, and `neat-csv`.
 - The product is a lender operations workspace with authentication, lender CSV import, borrower CSV import, lender eligibility matching, and a paginated leads review screen.
+- The workspace also includes a role-aware user creation page and lender-agent listing endpoint.
 - MongoDB is the only persistence layer. Mongoose models are cached through `lib/db.ts`.
 - Keep changes focused on the existing App Router, `features/`, and `lib/` boundaries. Do not introduce a second persistence layer or duplicate route for an existing feature.
 - The current committed app has no automated test suite; use `npm run lint` and `npm run build` for validation.
@@ -28,9 +29,10 @@ git_id: 95e4d547336a8a816d310fb94d863b570d428ba0
 - `app/` contains routes and client pages. API route handlers validate HTTP input, connect to MongoDB, call feature modules/models, and return JSON.
 - `features/` contains domain models and CSV import transformations. Keep mapping and validation logic out of route handlers where practical.
 - `lib/auth.ts` contains password hashing, session creation/lookup, cookie handling, role checks, and public user shaping.
-- Authentication uses a random session token stored as an `httpOnly` cookie (`lendere_session`); MongoDB stores only its SHA-256 hash in `Session`.
+- Authentication uses a random session token stored as an `httpOnly` cookie (`lendere_session`) or passed in the `Authorization: Bearer <token>` header; MongoDB stores only its SHA-256 hash in `Session` with a TTL index for automatic expiration.
 - Users reference lenders with `User.lenderId: ObjectId`; lender records have a separate unique business identifier `Lender.lenderId: string`.
 - The leads page loads `/api/auth/session`, fetches lender configuration from `/api/leander`, then calls `/api/leads` one page at a time. API routes derive lender ownership from the authenticated session rather than trusting query-string lender IDs.
+- User creation uses `/users/new` and `/api/users`; the page limits visible role choices based on the signed-in user's role and automatically uses a lender admin's lender ID for lender-agent accounts.
 
 ## Important Locations
 
@@ -48,6 +50,9 @@ git_id: 95e4d547336a8a816d310fb94d863b570d428ba0
 - `lib/auth.ts`: session lookup, password hashing, user authorization, and public user helpers.
 - `app/api/auth/**`: login, logout, session, forgot-password, and reset-password endpoints.
 - `app/api/users/route.ts`: user administration endpoint. Both `GET` and `POST` require an authenticated `ops_admin`; `GET` excludes `passwordHash`, and `POST` returns a public user shape after creating the account.
+- `app/users/new/page.tsx`: authenticated role-aware form for creating workspace users.
+- `app/api/users/agents/route.ts`: authenticated lender-agent listing endpoint scoped to the current lender admin's `lenderId`.
+- `features/case/case.model.ts`: case model linking leads, lenders, users, and workflow state with assignment timestamps.
 - `app/api/route.ts`: root API handler; keep it separate from feature routes.
 
 ## Lead CSV Import Contract
@@ -65,11 +70,13 @@ git_id: 95e4d547336a8a816d310fb94d863b570d428ba0
 
 ## Lead Filtering And Pagination
 
-- `GET /api/leads` authenticates the request, requires the `lender_admin` role, loads `currentUser.lenderId` with `Lender.findById`, constructs a MongoDB filter from that lender's eligibility, and runs `countDocuments` plus a sorted, bounded query. It sorts newest `metadata.createdAt` first and uses `_id` as a deterministic tie-breaker.
-- `page` and `pageSize` are validated as positive integers. Invalid values, reversed lender age bounds, and invalid lender credit bounds return a 400 response. If the session has no lender ID or the lender cannot be found, the current implementation falls back to default matching values; authorization is still required.
+- `GET /api/leads` authenticates the request, requires the `lender_admin` or `ops_admin` role, loads `currentUser.lenderId` with `Lender.findById`, constructs a MongoDB filter from that lender's eligibility, and combines it with optional user-supplied filters. It sorts by the requested order (`newest`, `oldest`, `highestCreditScore`, or `highestIncome`; default `newest`) and uses `_id` as a deterministic tie-breaker.
+- Query parameters: `page`, `pageSize`, `sort`, `ageMin`, `ageMax`, `incomeMin`, `incomeMax`, `creditMin`, `creditMax`, `employmentType` (comma-separated list), `search`, `state`, `city`, `pincode`, `loanAmountMin`, `loanAmountMax`, and `loanPurpose`. All parameters are optional.
+- `search` performs case-insensitive regex matching against `_doc_id`, `contact.phone`, `personal.firstName`, and `personal.lastName`.
+- Location filters (`state`, `city`, `pincode`) use `$elemMatch` to match against the `addresses` array.
+- Validation returns 400 for invalid ranges (e.g., `ageMin > ageMax`, `creditMin >= creditMax`) or employment types outside lender eligibility.
 - `pageSize` is capped at 100 to prevent an unbounded response. Client screens should request a page rather than fetching all matching leads.
-- The leads UI currently requests 10 records per page and displays borrower name, source document ID, phone, age, employment, income, credit score, and first-address location.
-- The route uses the authenticated lender's eligibility directly. Do not add direct `id`, `ageMin`, `ageMax`, income, credit, or employment query aliases without changing both the route and the client deliberately.
+- The leads UI requests 10 records per page and displays borrower name, source document ID, phone, age, employment, income, credit score, and first-address location.
 
 ## Lender Eligibility Configuration
 
@@ -83,8 +90,9 @@ git_id: 95e4d547336a8a816d310fb94d863b570d428ba0
 ## Authentication and Authorization
 
 - Define `MONGODB_URI` in `.env.local`, for example `mongodb://127.0.0.1:27017/lendere`.
-- Protected routes call `getAuthenticatedUser(request)` from `lib/auth.ts` and enforce roles with `requireRole`. Current route behavior: `/api/leads` GET is `lender_admin`-only, `/api/leads` POST is `ops_admin`-only, `/api/leander` GET and POST are `ops_admin`-only, and `/api/users` GET and POST are `ops_admin`-only.
-- `/api/users` `GET` and `POST` are restricted to authenticated `ops_admin` users.
+- Protected routes call `getAuthenticatedUser(request)` from `lib/auth.ts` and enforce roles with `requireRole`. `getAuthenticatedUser` checks the `Authorization: Bearer <token>` header first, then falls back to the `lendere_session` cookie. Current route behavior: `/api/leads` GET accepts `lender_admin` or `ops_admin`, `/api/leads` POST is `ops_admin`-only, `/api/leander` GET and POST are `ops_admin`-only, `/api/users` GET is `ops_admin`-only, `/api/users` POST accepts `ops_admin` or `lender_admin`, and `/api/users/agents` GET is `lender_admin`-only.
+- `/api/users` `GET` lists all users without `passwordHash`. `POST` creates an active user, requires `name`, `email`, `password`, and a valid role, and validates lender IDs for lender users. An `ops_admin` can create any supported role; a `lender_admin` cannot create another `lender_admin` through the route.
+- `/api/users/agents` returns only `lender_agent` records whose `lenderId` matches the authenticated lender admin. Do not accept a caller-supplied lender ID for this listing.
 - Preserve `httpOnly` session cookies and never log or persist raw passwords or session tokens.
 - Login rejects missing credentials, disabled/inactive accounts, and invalid passwords; successful login creates a seven-day session.
 - Logout deletes the current session and clears the cookie. Password reset tokens are stored hashed, expire after one hour, activate the account on reset, and revoke existing sessions.
@@ -109,5 +117,5 @@ npm run build
 - Preserve the existing visual direction of the import workspace: warm paper background, dark ink text, coral action color, editorial serif headings, and responsive layouts.
 - Avoid logging complete uploaded files or imported personal data in production code.
 - `app/api/leander/routes.ts` is not part of the current tree; use `app/api/leander/route.ts` for the production App Router endpoint.
-- The lender lookup route still contains temporary console logging; do not add logging of uploaded files, passwords, tokens, or complete personal data, and remove the debug logging when touching that path.
+- The leads and lender lookup routes contain debug logging; do not add logging of uploaded files, passwords, tokens, or complete personal data, and remove existing debug logging when touching those paths.
 - Run `npm run lint` after edits. Run `npm run build` for route, type, and production compilation checks; a larger Node heap may be required during Next.js page-data collection on constrained Windows environments.

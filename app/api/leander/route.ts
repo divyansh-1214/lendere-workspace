@@ -9,7 +9,7 @@ import { getAuthenticatedUser, requireRole } from "@/lib/auth";
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
-    if (!currentUser || !requireRole(currentUser, ["ops_admin"])) {
+    if (!currentUser || !requireRole(currentUser, ["ops_admin", "lender_admin"])) {
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }
     const lenderId = currentUser.lenderId;

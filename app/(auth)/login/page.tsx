@@ -28,6 +28,7 @@ export default function LoginPage() {
         setError(data.message ?? "Unable to sign in");
         return;
       }
+      localStorage.setItem("role", data.data.role)
       router.push("/");
       router.refresh();
     } catch {
