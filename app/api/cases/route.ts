@@ -26,14 +26,23 @@ const eligibilityFor = (lender: { eligibility?: { age: { min: number; max: numbe
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
-    if (!currentUser || !requireRole(currentUser, ["lender_admin"])) {
+    if (!currentUser || !requireRole(currentUser, ["lender_admin", "lender_agent"])) {
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }
     if (!currentUser.lenderId) {
       return NextResponse.json({ success: false, message: "Lender is not configured" }, { status: 400 });
     }
-
     await connectDB();
+    if (currentUser.role === "lender_agent") {
+      const data = await Case.find({ agentId: currentUser._id }).populate("leadId").lean();
+      return NextResponse.json({
+        success: true,
+        data,
+        count: data.length,
+        totalCount: data.length,
+        pagination: { page: 1, pageSize: data.length, totalPages: 1 },
+      });
+    }
     const lender = await Lender.findById(currentUser.lenderId).lean();
     const assignedLeadIds = await Case.find({
       lenderId: currentUser.lenderId,

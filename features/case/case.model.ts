@@ -58,13 +58,6 @@ const CaseSchema = new Schema(
       index: true,
     },
 
-    // ise ek value add kar sakte hai jo current node to point karega
-    currentNode: {
-      type: Schema.Types.ObjectId,
-      ref: "WorkflowNode",
-      default: null,
-    },
-
     assignedAt: {
       type: Date,
       default: Date.now,
