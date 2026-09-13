@@ -25,7 +25,7 @@ const optionalNumberQuery = (value: string | null, name: string, minimum = 0) =>
   if (!Number.isFinite(parsed) || parsed < minimum) {
     throw new Error(`${name} must be a number greater than or equal to ${minimum}`);
   }
-
+  const maximum = name === "age" ? 120 : undefined;
   return maximum ? Math.min(parsed, maximum) : parsed;
 };
 
