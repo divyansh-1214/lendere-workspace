@@ -26,7 +26,7 @@ const optionalNumberQuery = (value: string | null, name: string, minimum = 0) =>
     throw new Error(`${name} must be a number greater than or equal to ${minimum}`);
   }
 
-  return parsed;
+  return maximum ? Math.min(parsed, maximum) : parsed;
 };
 
 const optionalTextQuery = (value: string | null) => {
