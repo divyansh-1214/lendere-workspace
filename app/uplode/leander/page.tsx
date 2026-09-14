@@ -38,14 +38,14 @@ export default function Home() {
   };
   const downloadTemplate = () => {
     const url = URL.createObjectURL(new Blob([template], { type: "text/csv;charset=utf-8" }));
-    const link = document.createElement("a"); link.href = url; link.download = "lead-import-template.csv"; link.click(); URL.revokeObjectURL(url);
+    const link = document.createElement("a"); link.href = url; link.download = "lender-import-template.csv"; link.click(); URL.revokeObjectURL(url);
   };
 
   return (
     <main className="workspace-shell">
       <section className="hero-section">
         <div className="eyebrow">
-          <span>01</span> Lead intake
+          <span>01</span> lender intake
         </div>
         <div className="hero-grid">
           <div>
@@ -53,14 +53,14 @@ export default function Home() {
               Bring your borrower data <em>into focus.</em>
             </h1>
             <p className="hero-copy">
-              Import a clean CSV and turn every row into a structured lead record,
+              Import a clean CSV and turn every row into a structured lender record,
               ready for the next conversation.
             </p>
           </div>
           <div className="hero-note">
             <span className="note-line" />
             <p>
-              One row becomes one lead.
+              One row becomes one lender.
               <br />
               Addresses stay together.
             </p>
@@ -72,7 +72,7 @@ export default function Home() {
         <div className="section-heading">
           <div>
             <span className="section-kicker">Import centre</span>
-            <h2>Upload your lead file</h2>
+            <h2>Upload your lender file</h2>
           </div>
           <button className="template-button" onClick={downloadTemplate} type="button">
             <span>↓</span> Download template
@@ -130,7 +130,7 @@ export default function Home() {
             onClick={upload}
             disabled={!file || uploading}
           >
-            {uploading ? "Importing rows…" : "Import leads"}
+            {uploading ? "Importing rows…" : "Import lenders"}
             <span>→</span>
           </button>
         </div>
@@ -152,7 +152,7 @@ export default function Home() {
                   ))}
                 </div>
               ) : (
-                <p>Validated records are now available in your leads collection.</p>
+                <p>Validated records are now available in your lenders collection.</p>
               )}
             </div>
           </section>
@@ -163,7 +163,7 @@ export default function Home() {
             <span className="schema-number">A</span>
             <span>
               <strong>Addresses supported</strong>
-              <small>address1 and address2 are stored on the same lead</small>
+              <small>address1 and address2 are stored on the same lender</small>
             </span>
           </div>
           <div>
@@ -185,7 +185,7 @@ export default function Home() {
 
       <footer>
         <span>© 2026 Lendere</span>
-        <span>Lead operations / Import centre</span>
+        <span>lender operations / Import centre</span>
       </footer>
     </main>
   );
