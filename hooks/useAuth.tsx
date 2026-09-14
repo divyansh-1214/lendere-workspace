@@ -1,21 +1,10 @@
 "use client";
-
-// id: "6aa39dbea2b759206252c1fe"
-// email:"divyansh.sri23@gmail.com"
-// lenderId: "6aa29d356172a6ff8a26e754"
-// name:"Divyansh Srivastava"
-// role: "lender_admin"
-// expiresAt:"2026-09-21T16:20:32.322Z"
-
-// id: "6aa39dbea2b759206252c1fe"
-// email: "divyansh.sri23@gmail.com"
-// lenderId: "6aa29d356172a6ff8a26e754"
-// name: "Divyansh Srivastava"
-// role: "lender_admin"
+import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
   useContext,
   useEffect,
+  useCallback,
   useState,
 } from "react";
 
@@ -29,7 +18,7 @@ type User = {
   name: string;
   email: string;
   role: UserRole;
-  lenderId: string
+  lenderId?: string;
 };
 
 type AuthContextType = {
@@ -56,7 +45,7 @@ export function AuthProvider({
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const response = await fetch("/api/auth/session", {
         method: "GET",
@@ -80,7 +69,7 @@ export function AuthProvider({
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const login = async (
     email: string,
@@ -120,13 +109,36 @@ export function AuthProvider({
   };
 
   useEffect(() => {
-     refreshUser();
-   }, []);
+    const refreshTimer = window.setTimeout(() => {
+      void refreshUser();
+    }, 0);
 
-   // Watch user state changes
-   // useEffect(() => {
-   //   console.log("USER STATE CHANGED:", user);
-   // }, [user]);
+    return () => window.clearTimeout(refreshTimer);
+  }, [refreshUser]);
+
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const publicRoutes = ["/login", "/signup"];
+    if (!user) {
+      if (!publicRoutes.includes(pathname)) {
+        router.replace("/login");
+      }
+      return;
+    }
+
+    if (publicRoutes.includes(pathname)) {
+      router.replace(getHomeRoute(user.role));
+      return;
+    }
+
+    if (!canAccessRoute(user.role, pathname)) {
+      router.replace(getHomeRoute(user.role));
+    }
+  }, [loading, pathname, router, user]);
 
   return (
     <AuthContext.Provider
@@ -144,9 +156,36 @@ export function AuthProvider({
   );
 }
 
+function getHomeRoute(role: UserRole) {
+  switch (role) {
+    case "ops_admin":
+      return "/uplode/leads";
+    case "lender_admin":
+      return "/leads";
+    case "lender_agent":
+      return "/assigned";
+  }
+}
+
+function canAccessRoute(role: UserRole, pathname: string) {
+  if (role === "ops_admin") {
+    return [
+      "/",
+      "/uplode/leads",
+      "/uplode/leander",
+      "/users/new",
+    ].includes(pathname);
+  }
+
+  if (role === "lender_admin") {
+    return ["/leads", "/assigned", "/users/new"].includes(pathname);
+  }
+
+  return pathname === "/assigned";
+}
+
 export function useAuth() {
   const context = useContext(AuthContext);
-
   if (!context) {
     throw new Error(
       "useAuth must be used inside AuthProvider"

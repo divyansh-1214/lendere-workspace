@@ -43,6 +43,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
+    console.log("user",currentUser)
     if (!currentUser || !requireRole(currentUser, ["ops_admin"])) {
       return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
     }

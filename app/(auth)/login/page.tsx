@@ -4,8 +4,9 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-
+import { useAuth } from "@/hooks/useAuth";
 export default function LoginPage() {
+  const {login,user} = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -18,17 +19,8 @@ export default function LoginPage() {
     setSubmitting(true);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        setError(data.message ?? "Unable to sign in");
-        return;
-      }
-      localStorage.setItem("role", data.data.role)
+      await login(email, password);
+
       router.push("/");
       router.refresh();
     } catch {
