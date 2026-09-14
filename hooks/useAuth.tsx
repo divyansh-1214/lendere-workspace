@@ -1,5 +1,17 @@
 "use client";
 
+// id: "6aa39dbea2b759206252c1fe"
+// email:"divyansh.sri23@gmail.com"
+// lenderId: "6aa29d356172a6ff8a26e754"
+// name:"Divyansh Srivastava"
+// role: "lender_admin"
+// expiresAt:"2026-09-21T16:20:32.322Z"
+
+// id: "6aa39dbea2b759206252c1fe"
+// email: "divyansh.sri23@gmail.com"
+// lenderId: "6aa29d356172a6ff8a26e754"
+// name: "Divyansh Srivastava"
+// role: "lender_admin"
 import {
   createContext,
   useContext,
@@ -17,7 +29,7 @@ type User = {
   name: string;
   email: string;
   role: UserRole;
-  lenderId:string
+  lenderId: string
 };
 
 type AuthContextType = {
@@ -46,8 +58,6 @@ export function AuthProvider({
 
   const refreshUser = async () => {
     try {
-      setLoading(true);
-
       const response = await fetch("/api/auth/session", {
         method: "GET",
         credentials: "include",
@@ -59,9 +69,8 @@ export function AuthProvider({
       }
 
       const data = await response.json();
-
       if (data.success) {
-        setUser(data.user);
+        setUser(data.data);
       } else {
         setUser(null);
       }
@@ -96,8 +105,7 @@ export function AuthProvider({
         data.message || "Login failed"
       );
     }
-
-    setUser(data.user);
+    setUser(data.data);
   };
 
   const logout = async () => {
@@ -111,9 +119,14 @@ export function AuthProvider({
     }
   };
 
-  // useEffect(() => {
-  //   refreshUser();
-  // }, []);
+  useEffect(() => {
+     refreshUser();
+   }, []);
+
+   // Watch user state changes
+   // useEffect(() => {
+   //   console.log("USER STATE CHANGED:", user);
+   // }, [user]);
 
   return (
     <AuthContext.Provider
