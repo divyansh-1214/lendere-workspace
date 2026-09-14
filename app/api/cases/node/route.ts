@@ -6,6 +6,7 @@ import Case from "@/features/case/case.model";
 import { CaseEvent } from "@/features/case/caseEvent.model";
 import { getAuthenticatedUser, requireRole } from "@/lib/auth";
 
+import mongoose from "mongoose";
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
@@ -69,87 +70,138 @@ export async function POST(request: NextRequest) {
     if (action === "answer" && (!body.nodeId || !isValidObjectId(body.nodeId))) {
       return NextResponse.json({ success: false, message: "Valid nodeId is required" }, { status: 400 });
     }
-
-    await connectDB();
-    const caseRecord = await Case.findOne({ _id: body.caseId, agentId: currentUser._id });
-    if (!caseRecord) {
-      return NextResponse.json({ success: false, message: "Case not found or not assigned to this agent" }, { status: 404 });
+    if (action === "answer" && (body.answer?.value === undefined || body.answer?.value === null)) {
+      return NextResponse.json({ success: false, message: "Answer value is required" }, { status: 400 });
     }
-    if (["COMPLETED", "REJECTED", "CANCELLED"].includes(caseRecord.status)) {
-      return NextResponse.json({ success: false, message: "This case is already closed" }, { status: 409 });
-    }
-
-    if (action === "answer") {
-      if (body.answer?.value === undefined || body.answer.value === null) {
-        return NextResponse.json({ success: false, message: "Answer value is required" }, { status: 400 });
-      }
-      const node = await CaseNode.findOne({ _id: body.nodeId, caseId: caseRecord._id, agentId: currentUser._id });
-      if (!node || node.type !== "QUESTION") {
-        return NextResponse.json({ success: false, message: "Question node not found" }, { status: 404 });
-      }
-      node.answer = { value: body.answer.value, label: body.answer.label ?? null };
-      await node.save();
-      await CaseEvent.create({ caseId: caseRecord._id, agentId: currentUser._id, actorType: "AGENT", type: "ANSWER_SUBMITTED", nodeId: node._id });
-      return NextResponse.json({ success: true, data: node }, { status: 200 });
-    }
-
-    if (body.parentId && !isValidObjectId(body.parentId)) {
+    if (action === "create" && body.parentId && !isValidObjectId(body.parentId)) {
       return NextResponse.json({ success: false, message: "Invalid parentId" }, { status: 400 });
     }
-    if (body.type !== "QUESTION" && body.type !== "OUTCOME") {
+    if (action === "create" && body.type !== "QUESTION" && body.type !== "OUTCOME") {
       return NextResponse.json({ success: false, message: "type must be QUESTION or OUTCOME" }, { status: 400 });
     }
-    if (body.type === "QUESTION" && (!body.question?.text?.trim() || !body.question.answerType)) {
+    if (action === "create" && body.type === "QUESTION" && (!body.question?.text?.trim() || !body.question.answerType)) {
       return NextResponse.json({ success: false, message: "Question text and answerType are required" }, { status: 400 });
     }
     const answerTypes = ["TEXT", "NUMBER", "BOOLEAN", "SINGLE_SELECT", "MULTI_SELECT"];
-    if (body.type === "QUESTION" && !answerTypes.includes(body.question?.answerType ?? "")) {
+    if (action === "create" && body.type === "QUESTION" && !answerTypes.includes(body.question?.answerType ?? "")) {
       return NextResponse.json({ success: false, message: "Invalid question answerType" }, { status: 400 });
     }
-    if (body.type === "OUTCOME" && (!body.outcome?.code?.trim() || !body.outcome.label?.trim())) {
+    if (action === "create" && body.type === "OUTCOME" && (!body.outcome?.code?.trim() || !body.outcome.label?.trim())) {
       return NextResponse.json({ success: false, message: "Outcome code and label are required" }, { status: 400 });
     }
-    if (body.parentId) {
-      const parent = await CaseNode.exists({ _id: body.parentId, caseId: caseRecord._id, agentId: currentUser._id });
-      if (!parent) {
-        return NextResponse.json({ success: false, message: "Parent node not found" }, { status: 404 });
-      }
-    }
 
-    const node = await CaseNode.create({
-      caseId: caseRecord._id,
-      lenderId: caseRecord.lenderId,
-      agentId: currentUser._id,
-      parentId: body.parentId || null,
-      type: body.type,
-      question: body.type === "QUESTION" ? body.question : undefined,
-      outcome: body.type === "OUTCOME" ? body.outcome : undefined,
-    });
-    const wasAssigned = caseRecord.status === "ASSIGNED";
-    caseRecord.currentNodeId = node._id;
-    if (wasAssigned) {
-      caseRecord.status = "IN_PROGRESS";
-      caseRecord.startedAt = new Date();
+    await connectDB();
+    const session = await mongoose.startSession();
+    try {
+      const result = await session.withTransaction(async () => {
+        const caseRecord = await Case.findOne(
+          { _id: body.caseId, agentId: currentUser._id },
+          null,
+          { session },
+        );
+        if (!caseRecord) {
+          throw new Error("Case not found or not assigned to this agent");
+        }
+        if (["COMPLETED", "REJECTED", "CANCELLED"].includes(caseRecord.status)) {
+          throw new Error("This case is already closed");
+        }
+
+        if (action === "answer") {
+          const answer = body.answer;
+          if (!answer) {
+            throw new Error("Answer value is required");
+          }
+          const node = await CaseNode.findOne(
+            { _id: body.nodeId, caseId: caseRecord._id, agentId: currentUser._id },
+            null,
+            { session },
+          );
+          if (!node || node.type !== "QUESTION") {
+            throw new Error("Question node not found");
+          }
+          node.answer = { value: answer.value, label: answer.label ?? null };
+          await node.save({ session });
+          await CaseEvent.create([{
+            caseId: caseRecord._id,
+            agentId: currentUser._id,
+            actorType: "AGENT",
+            type: "ANSWER_SUBMITTED",
+            nodeId: node._id,
+          }], { session });
+          return { data: node, caseRecord };
+        }
+
+        if (body.parentId) {
+          const parent = await CaseNode.exists({
+            _id: body.parentId,
+            caseId: caseRecord._id,
+            agentId: currentUser._id,
+          }).session(session);
+          if (!parent) {
+            throw new Error("Parent node not found");
+          }
+        }
+
+        const [node] = await CaseNode.create([{
+          caseId: caseRecord._id,
+          lenderId: caseRecord.lenderId,
+          agentId: currentUser._id,
+          parentId: body.parentId || null,
+          type: body.type,
+          question: body.type === "QUESTION" ? body.question : undefined,
+          outcome: body.type === "OUTCOME" ? body.outcome : undefined,
+        }], { session });
+
+        const wasAssigned = caseRecord.status === "ASSIGNED";
+        caseRecord.currentNodeId = node._id;
+        if (wasAssigned) {
+          caseRecord.status = "IN_PROGRESS";
+          caseRecord.startedAt = new Date();
+        }
+        if (body.type === "OUTCOME") {
+          caseRecord.status = body.status ?? "COMPLETED";
+          caseRecord.finalOutcome = body.outcome;
+          caseRecord.completedAt = new Date();
+        }
+        await caseRecord.save({ session });
+        await CaseEvent.create([{
+          caseId: caseRecord._id,
+          agentId: currentUser._id,
+          actorType: "AGENT",
+          type: body.type === "OUTCOME" ? "OUTCOME_CREATED" : "NODE_CREATED",
+          nodeId: node._id,
+        }], { session });
+        if (body.type === "OUTCOME") {
+          await CaseEvent.create([{
+            caseId: caseRecord._id,
+            agentId: currentUser._id,
+            actorType: "AGENT",
+            type: "CASE_COMPLETED",
+            nodeId: node._id,
+          }], { session });
+        } else if (wasAssigned) {
+          await CaseEvent.create([{
+            caseId: caseRecord._id,
+            agentId: currentUser._id,
+            actorType: "AGENT",
+            type: "CASE_STARTED",
+            nodeId: node._id,
+          }], { session });
+        }
+
+        return {
+          data: node,
+          caseRecord,
+        };
+      });
+      return NextResponse.json({ success: true, data: result.data, case: result.caseRecord }, { status: action === "answer" ? 200 : 201 });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to process case node";
+      const status = message.includes("not found") ? 404 : message.includes("already closed") ? 409 : 500;
+      return NextResponse.json({ success: false, message }, { status });
+    } finally {
+      await session.endSession();
     }
-    if (body.type === "OUTCOME") {
-      caseRecord.status = body.status ?? "COMPLETED";
-      caseRecord.finalOutcome = body.outcome;
-      caseRecord.completedAt = new Date();
-    }
-    await caseRecord.save();
-    await CaseEvent.create({
-      caseId: caseRecord._id,
-      agentId: currentUser._id,
-      actorType: "AGENT",
-      type: body.type === "OUTCOME" ? "OUTCOME_CREATED" : "NODE_CREATED",
-      nodeId: node._id,
-    });
-    if (body.type === "OUTCOME") {
-      await CaseEvent.create({ caseId: caseRecord._id, agentId: currentUser._id, actorType: "AGENT", type: "CASE_COMPLETED", nodeId: node._id });
-    } else if (wasAssigned) {
-      await CaseEvent.create({ caseId: caseRecord._id, agentId: currentUser._id, actorType: "AGENT", type: "CASE_STARTED", nodeId: node._id });
-    }
-    return NextResponse.json({ success: true, data: node, case: caseRecord }, { status: 201 });
   } catch (error) {
     return NextResponse.json({ success: false, message: error instanceof Error ? error.message : "Failed to process case node" }, { status: 500 });
   }

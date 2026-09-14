@@ -268,8 +268,7 @@ const LeadsSchema = new Schema<ILeads>(
           "student",
           "unemployed",
           "other",
-        ],
-        default: null,
+        ]
       },
 
       companyName: {
@@ -299,7 +298,6 @@ const LeadsSchema = new Schema<ILeads>(
       creditScore: {
         type: Number,
         required: true,
-        default: null,
         min: 0,
         max: 900,
       },

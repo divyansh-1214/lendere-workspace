@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "name, email, password, and a valid role are required" }, { status: 400 });
     }
     if ((body.role === "lender_admin" && !requireRole(currentUser, ["ops_admin"]))
-      || (body.role === "ops_admin" && !requireRole(currentUser, ["ops_admin", "lender_admin"]))) {
+      || (body.role === "ops_admin" && !requireRole(currentUser, ["ops_admin"]))) {
       return NextResponse.json({ success: false, message: "Forbidden to create user with this role" }, { status: 403 });
     }
     await connectDB();
