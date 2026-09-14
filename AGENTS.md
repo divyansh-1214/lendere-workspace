@@ -12,14 +12,15 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Lendere Workspace Project Context
 
-Last updated: 2026-09-12
-git_id: 8c05ce937830e39e06f57e64c6ca9ec41af26d5c
+Last updated: 2026-09-14
+git_id: 4374b88aaa120f4a57265f288a3cdf253542c3d4
 
 ## Project Overview
 
 - This is a Next.js 16.3.4 App Router application using React 19.2.8, TypeScript 5, Tailwind CSS 4, MongoDB 7, Mongoose 9.9.5, Axios, and `neat-csv`.
 - The product is a lender operations workspace with authentication, lender CSV import, borrower CSV import, lender eligibility matching, and a paginated leads review screen.
 - The workspace also includes a role-aware user creation page and lender-agent listing endpoint.
+- The workspace includes lender-agent lead assignment and an assigned-case workflow with question, answer, and outcome nodes.
 - MongoDB is the only persistence layer. Mongoose models are cached through `lib/db.ts`.
 - Keep changes focused on the existing App Router, `features/`, and `lib/` boundaries. Do not introduce a second persistence layer or duplicate route for an existing feature.
 - The current committed app has no automated test suite; use `npm run lint` and `npm run build` for validation.
@@ -33,6 +34,7 @@ git_id: 8c05ce937830e39e06f57e64c6ca9ec41af26d5c
 - Users reference lenders with `User.lenderId: ObjectId`; lender records have a separate unique business identifier `Lender.lenderId: string`.
 - The leads page loads `/api/auth/session`, fetches lender configuration from `/api/leander`, then calls `/api/leads` one page at a time. API routes derive lender ownership from the authenticated session rather than trusting query-string lender IDs.
 - User creation uses `/users/new` and `/api/users`; the page limits visible role choices based on the signed-in user's role and automatically uses a lender admin's lender ID for lender-agent accounts.
+- Lender admins assign eligible leads to active agents through `/api/cases`; agents work assigned cases through `/assigned` and manage case nodes through `/api/cases/node`.
 
 ## Important Locations
 
@@ -52,7 +54,13 @@ git_id: 8c05ce937830e39e06f57e64c6ca9ec41af26d5c
 - `app/api/users/route.ts`: user administration endpoint. Both `GET` and `POST` require an authenticated `ops_admin`; `GET` excludes `passwordHash`, and `POST` returns a public user shape after creating the account.
 - `app/users/new/page.tsx`: authenticated role-aware form for creating workspace users.
 - `app/api/users/agents/route.ts`: authenticated lender-agent listing endpoint scoped to the current lender admin's `lenderId`.
+- `app/api/cases/route.ts`: authenticated case assignment endpoint and assigned/free lead listing.
+- `app/api/cases/node/route.ts`: authenticated agent case-path endpoint for creating questions/outcomes and submitting answers.
+- `app/assigned/page.tsx`: assigned-case workspace with search, status filtering, case details, and case-path editing.
 - `features/case/case.model.ts`: case model linking leads, lenders, users, and workflow state with assignment timestamps.
+- `features/case/case.types.ts`: shared assigned-case, assigned-lead, and case-status types used by the assigned workspace.
+- `features/case/caseNode.model.ts`: case question/outcome node model with parent links, answer formats, and answers.
+- `features/case/caseEvent.model.ts`: case activity event model for assignment, node, answer, and completion events.
 - `app/api/route.ts`: root API handler; keep it separate from feature routes.
 
 ## Lead CSV Import Contract
@@ -67,6 +75,17 @@ git_id: 8c05ce937830e39e06f57e64c6ca9ec41af26d5c
 - Lead employment values accepted by the schema are `salaried`, `self_employed`, `business`, `student`, `unemployed`, and `other`. Lender eligibility separately accepts `salaried`, `self_employed`, `business`, and `professional`; keep this difference in mind when matching imported data.
 - Invalid rows should return their source CSV row number and an actionable message. Do not silently discard malformed data.
 - Preserve the nested lead model shape (`personal`, `contact`, `addresses`, `employment`, `credit`, `loan`, `identification`, `application`, `attribution`, and `metadata`).
+
+## Lead Assignment And Case Workflow
+
+- `GET /api/cases` requires an authenticated `lender_admin` or `lender_agent`.
+- A `lender_agent` receives only cases assigned to that agent, with the related lead populated. A `lender_admin` receives eligible, unassigned leads for the admin's lender, paginated with `page` and `pageSize` and capped at 100 per page.
+- `POST /api/cases` is restricted to `lender_admin`. It requires valid `leadId` and `agentId` values, verifies that the agent is an active `lender_agent` belonging to the current lender, verifies the lead against lender eligibility, and prevents duplicate lender-lead assignments.
+- Case assignments store the lead, lender, assigned agent, assigning lender admin, status, and assignment timestamp. Assignment status starts as `ASSIGNED`; the unique `{ lenderId, leadId }` index prevents duplicate assignments.
+- `GET /api/cases/node` is restricted to `lender_agent`. It returns the agent's cases and case nodes, optionally filtered by a valid `caseId`; agents cannot read another agent's case.
+- `POST /api/cases/node` is restricted to `lender_agent` and accepts `action: "create"` or `action: "answer"`. Agents can create `QUESTION` nodes with answer types `TEXT`, `NUMBER`, `BOOLEAN`, `SINGLE_SELECT`, or `MULTI_SELECT`, submit answers to question nodes, and create `OUTCOME` nodes.
+- Creating the first node moves a case from `ASSIGNED` to `IN_PROGRESS`; an outcome changes the case to `COMPLETED`, `REJECTED`, or `CANCELLED`. Closed cases cannot be modified.
+- Case events record node creation, answer submission, case start, outcome creation, and case completion. Preserve the `Case`, `CaseNode`, and `CaseEvent` model relationships when changing the workflow.
 
 ## Lead Filtering And Pagination
 
@@ -90,7 +109,7 @@ git_id: 8c05ce937830e39e06f57e64c6ca9ec41af26d5c
 ## Authentication and Authorization
 
 - Define `MONGODB_URI` in `.env.local`, for example `mongodb://127.0.0.1:27017/lendere`.
-- Protected routes call `getAuthenticatedUser(request)` from `lib/auth.ts` and enforce roles with `requireRole`. `getAuthenticatedUser` checks the `Authorization: Bearer <token>` header first, then falls back to the `lendere_session` cookie. Current route behavior: `/api/leads` GET accepts `lender_admin` or `ops_admin`, `/api/leads` POST is `ops_admin`-only, `/api/leander` GET and POST are `ops_admin`-only, `/api/users` GET is `ops_admin`-only, `/api/users` POST accepts `ops_admin` or `lender_admin`, and `/api/users/agents` GET is `lender_admin`-only.
+- Protected routes call `getAuthenticatedUser(request)` from `lib/auth.ts` and enforce roles with `requireRole`. `getAuthenticatedUser` checks the `Authorization: Bearer <token>` header first, then falls back to the `lendere_session` cookie. Current route behavior: `/api/leads` GET accepts `lender_admin` or `ops_admin`, `/api/leads` POST is `ops_admin`-only, `/api/leander` GET and POST are `ops_admin`-only, `/api/users` GET is `ops_admin`-only, `/api/users` POST accepts `ops_admin` or `lender_admin`, `/api/users/agents` GET is `lender_admin`-only, `/api/cases` GET accepts `lender_admin` or `lender_agent`, `/api/cases` POST is `lender_admin`-only, and `/api/cases/node` GET and POST are `lender_agent`-only.
 - `/api/users` `GET` lists all users without `passwordHash`. `POST` creates an active user, requires `name`, `email`, `password`, and a valid role, and validates lender IDs for lender users. An `ops_admin` can create any supported role; a `lender_admin` cannot create another `lender_admin` through the route.
 - `/api/users/agents` returns only `lender_agent` records whose `lenderId` matches the authenticated lender admin. Do not accept a caller-supplied lender ID for this listing.
 - Preserve `httpOnly` session cookies and never log or persist raw passwords or session tokens.
