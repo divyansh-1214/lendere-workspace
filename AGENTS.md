@@ -12,8 +12,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Lendere Workspace Project Context
 
-Last updated: 2026-09-14
-git_id: 4374b88aaa120f4a57265f288a3cdf253542c3d4
+Last updated: 2026-09-15
 
 ## Project Overview
 
@@ -21,42 +20,64 @@ git_id: 4374b88aaa120f4a57265f288a3cdf253542c3d4
 - The product is a lender operations workspace with authentication, lender CSV import, borrower CSV import, lender eligibility matching, and a paginated leads review screen.
 - The workspace also includes a role-aware user creation page and lender-agent listing endpoint.
 - The workspace includes lender-agent lead assignment and an assigned-case workflow with question, answer, and outcome nodes.
+- Three user roles define the application flow: `ops_admin` (full workspace), `lender_admin` (single-lender workspace + team), and `lender_agent` (assigned-cases queue only).
 - MongoDB is the only persistence layer. Mongoose models are cached through `lib/db.ts`.
-- Keep changes focused on the existing App Router, `features/`, and `lib/` boundaries. Do not introduce a second persistence layer or duplicate route for an existing feature.
+- Keep changes focused on the existing App Router, `features/`, `component/`, `hooks/`, and `lib/` boundaries. Do not introduce a second persistence layer or duplicate route for an existing feature.
 - The current committed app has no automated test suite; use `npm run lint` and `npm run build` for validation.
 
 ## Architecture
 
 - `app/` contains routes and client pages. API route handlers validate HTTP input, connect to MongoDB, call feature modules/models, and return JSON.
+- `app/layout.tsx` wraps every route with the `AuthProvider` and renders the shared `<Nav />`; workspace pages should NOT define their own inline topbar.
+- `component/nav.tsx` provides role-aware global navigation with conditional link rendering, user/role labels, sign-out, and self-suppression on auth pages.
+- `hooks/useAuth.tsx` is the client-side single source of truth: `AuthProvider`, `useAuth()` hook, `getHomeRoute(role)`, `canAccessRoute(role, pathname)`, and client-side role redirects.
 - `features/` contains domain models and CSV import transformations. Keep mapping and validation logic out of route handlers where practical.
-- `lib/auth.ts` contains password hashing, session creation/lookup, cookie handling, role checks, and public user shaping.
+- `lib/auth.ts` contains server-side password hashing, session creation/lookup, cookie handling, role checks, and public user shaping.
 - Authentication uses a random session token stored as an `httpOnly` cookie (`lendere_session`) or passed in the `Authorization: Bearer <token>` header; MongoDB stores only its SHA-256 hash in `Session` with a TTL index for automatic expiration.
 - Users reference lenders with `User.lenderId: ObjectId`; lender records have a separate unique business identifier `Lender.lenderId: string`.
 - The leads page loads `/api/auth/session`, fetches lender configuration from `/api/leander`, then calls `/api/leads` one page at a time. API routes derive lender ownership from the authenticated session rather than trusting query-string lender IDs.
 - User creation uses `/users/new` and `/api/users`; the page limits visible role choices based on the signed-in user's role and automatically uses a lender admin's lender ID for lender-agent accounts.
 - Lender admins assign eligible leads to active agents through `/api/cases`; agents work assigned cases through `/assigned` and manage case nodes through `/api/cases/node`.
 
+## Role-Based User Flow & Navigation
+
+- **Role ➜ Home Route**: `ops_admin → /uplode/leads`; `lender_admin → /leads`; `lender_agent → /assigned`. Use `getHomeRoute(role)` (exported from `hooks/useAuth.tsx`) instead of hard-coding.
+- **Visible nav links per role** are defined in `component/nav.tsx` inside the `roleNav` record and rendered conditionally after the brand when the user is authenticated. Keep this record in sync with `canAccessRoute`.
+- **Nav rendering rules**: `<Nav />` is mounted once in `app/layout.tsx`. It renders `null` on auth pages (`/login`, `/signup`, `/users/new`, `/forgot-password`, `/reset-password`) so their custom aside layouts stay clean. Workspace pages must NOT embed duplicate `<header className="topbar">` elements.
+- **Unauthenticated redirect**: `AuthProvider` kicks any unauthenticated user not on the `/`, `/login`, or `/signup` public paths to `/login`.
+- **Authenticated redirect**: If a signed-in user lands on a public route or on a route outside their role's allowed list (checked via `canAccessRoute`), they are routed to their home route instead.
+- **Login page** (`app/(auth)/(login)/page.tsx`) itself mirrors this: after `login()` succeeds it re-fetches `/api/auth/session`, reads the role, and `router.replace(getHomeRoute(role))` rather than pushing to a generic `/`.
+- **Route access list** (mirror in `canAccessRoute`):
+  - `ops_admin` can visit: `/uplode/leads`, `/uplode/leander`, `/leads`, `/assigned`, `/users/new`
+  - `lender_admin` can visit: `/leads`, `/assigned`, `/users/new`
+  - `lender_agent` can visit: `/assigned`
+
 ## Important Locations
 
-- `app/page.tsx`: client-side lead CSV import workspace and upload interaction.
-- `app/leads/page.tsx`: client-side matched borrower lead table, eligibility summary, loading/error states, and previous/next pagination.
-- `app/globals.css`: global visual system and responsive styling for the workspace.
-- `app/api/leads/route.ts`: authenticated lead CSV upload endpoint and paginated lead filtering endpoint.
-- `app/api/leander/route.ts`: authenticated current-lender lookup endpoint and lender CSV upload endpoint at `POST /api/leander`.
+- `app/layout.tsx`: root layout, wraps body with `<AuthProvider>` and `<Nav />`.
+- `app/(auth)/(login)/page.tsx`: sign-in page, redirects signed-in users and post-login to role home.
+- `app/uplode/leads/page.tsx`: ops-admin lead CSV import workspace and upload interaction.
+- `app/uplode/leander/page.tsx`: ops-admin lender CSV import workspace.
+- `app/leads/page.tsx`: lender-admin lead directory with eligibility summary, filters, pagination, and free-lead agent assignment.
+- `app/assigned/page.tsx`: agent (and lender-admin) assigned-case workspace with search, status filtering, case details, and case-path editing.
+- `app/users/new/page.tsx`: authenticated role-aware form for creating workspace users (ops_admin creates any role; lender_admin creates lender_agent only).
+- `app/globals.css`: global visual system, topbar + topnav styles, and responsive breakpoints for the workspace shells.
+- `component/nav.tsx`: global role-aware Nav component consumed by `app/layout.tsx`.
+- `hooks/useAuth.tsx`: React Context `AuthProvider`, `useAuth()` hook, and exported `getHomeRoute` / `canAccessRoute` helpers.
+- `app/api/leads/route.ts`: authenticated lead CSV upload endpoint (ops_admin) and paginated lead filtering endpoint (lender_admin / ops_admin).
+- `app/api/leander/route.ts`: authenticated current-lender lookup endpoint (ops_admin) and lender CSV upload endpoint at `POST /api/leander`.
 - `features/leads/lead.model.ts`: Mongoose lead schema and indexes.
 - `features/leads/lead-import.ts`: CSV header normalization, validation, type conversion, and mapping into the lead model shape.
 - `features/leander/leander.model.ts`: lender configuration model with eligibility, routing-flow, geography, lead-limit, preflight, application, and offer settings.
 - `features/users/user.register.ts`: typed user creation, password hashing, lender ID validation, and lender existence checks.
 - `features/leander/leander-import.ts`: lender CSV header normalization, validation, type conversion, and mapping into the lender model shape.
 - `lib/db.ts`: cached Mongoose connection using `MONGODB_URI`.
-- `lib/auth.ts`: session lookup, password hashing, user authorization, and public user helpers.
+- `lib/auth.ts`: server-side session lookup, password hashing, user authorization, and public user helpers.
 - `app/api/auth/**`: login, logout, session, forgot-password, and reset-password endpoints.
 - `app/api/users/route.ts`: user administration endpoint. Both `GET` and `POST` require an authenticated `ops_admin`; `GET` excludes `passwordHash`, and `POST` returns a public user shape after creating the account.
-- `app/users/new/page.tsx`: authenticated role-aware form for creating workspace users.
 - `app/api/users/agents/route.ts`: authenticated lender-agent listing endpoint scoped to the current lender admin's `lenderId`.
-- `app/api/cases/route.ts`: authenticated case assignment endpoint and assigned/free lead listing.
-- `app/api/cases/node/route.ts`: authenticated agent case-path endpoint for creating questions/outcomes and submitting answers.
-- `app/assigned/page.tsx`: assigned-case workspace with search, status filtering, case details, and case-path editing.
+- `app/api/cases/route.ts`: authenticated case assignment endpoint (POST lender_admin) and assigned/free lead listing (GET lender_admin / lender_agent).
+- `app/api/cases/node/route.ts`: authenticated lender_agent case-path endpoint for creating questions/outcomes and submitting answers.
 - `features/case/case.model.ts`: case model linking leads, lenders, users, and workflow state with assignment timestamps.
 - `features/case/case.types.ts`: shared assigned-case, assigned-lead, and case-status types used by the assigned workspace.
 - `features/case/caseNode.model.ts`: case question/outcome node model with parent links, answer formats, and answers.
@@ -109,13 +130,15 @@ git_id: 4374b88aaa120f4a57265f288a3cdf253542c3d4
 ## Authentication and Authorization
 
 - Define `MONGODB_URI` in `.env.local`, for example `mongodb://127.0.0.1:27017/lendere`.
-- Protected routes call `getAuthenticatedUser(request)` from `lib/auth.ts` and enforce roles with `requireRole`. `getAuthenticatedUser` checks the `Authorization: Bearer <token>` header first, then falls back to the `lendere_session` cookie. Current route behavior: `/api/leads` GET accepts `lender_admin` or `ops_admin`, `/api/leads` POST is `ops_admin`-only, `/api/leander` GET and POST are `ops_admin`-only, `/api/users` GET is `ops_admin`-only, `/api/users` POST accepts `ops_admin` or `lender_admin`, `/api/users/agents` GET is `lender_admin`-only, `/api/cases` GET accepts `lender_admin` or `lender_agent`, `/api/cases` POST is `lender_admin`-only, and `/api/cases/node` GET and POST are `lender_agent`-only.
+- **Server-side**: Protected API routes call `getAuthenticatedUser(request)` from `lib/auth.ts` and enforce roles with `requireRole`. `getAuthenticatedUser` checks the `Authorization: Bearer <token>` header first, then falls back to the `lendere_session` cookie.
+- **Client-side**: The `AuthProvider` in `hooks/useAuth.tsx` wraps the app and performs role-based redirects (see **Role-Based User Flow & Navigation**) in addition to the API-level enforcement. These two layers must stay consistent with each other.
+- Current API route behavior: `/api/leads` GET accepts `lender_admin` or `ops_admin`, `/api/leads` POST is `ops_admin`-only, `/api/leander` GET and POST are `ops_admin`-only, `/api/users` GET is `ops_admin`-only, `/api/users` POST accepts `ops_admin` or `lender_admin`, `/api/users/agents` GET is `lender_admin`-only, `/api/cases` GET accepts `lender_admin` or `lender_agent`, `/api/cases` POST is `lender_admin`-only, and `/api/cases/node` GET and POST are `lender_agent`-only.
 - `/api/users` `GET` lists all users without `passwordHash`. `POST` creates an active user, requires `name`, `email`, `password`, and a valid role, and validates lender IDs for lender users. An `ops_admin` can create any supported role; a `lender_admin` cannot create another `lender_admin` through the route.
 - `/api/users/agents` returns only `lender_agent` records whose `lenderId` matches the authenticated lender admin. Do not accept a caller-supplied lender ID for this listing.
 - Preserve `httpOnly` session cookies and never log or persist raw passwords or session tokens.
 - Login rejects missing credentials, disabled/inactive accounts, and invalid passwords; successful login creates a seven-day session.
 - Logout deletes the current session and clears the cookie. Password reset tokens are stored hashed, expire after one hour, activate the account on reset, and revoke existing sessions.
-- `/api/auth/session` returns a public user object including `id`, `name`, `email`, `role`, `lenderId`, and `status`; unauthenticated requests return 401. Do not expose `passwordHash`.
+- `/api/auth/session` returns a public user object including `id`, `name`, `email`, `role`, `lenderId`, and `status`; unauthenticated requests return 401. Do not expose `passwordHash`. This same shape is what `useAuth().user` exposes client-side.
 
 ## Development Commands
 

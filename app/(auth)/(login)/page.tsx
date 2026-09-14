@@ -2,16 +2,22 @@
 "use client";
 
 import Link from "next/link";
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, getHomeRoute } from "@/hooks/useAuth";
 export default function LoginPage() {
-  const {login,user} = useAuth();
+  const { login, user } = useAuth();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      router.replace(getHomeRoute(user.role));
+    }
+  }, [user, router]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -20,8 +26,15 @@ export default function LoginPage() {
 
     try {
       await login(email, password);
-
-      router.push("/");
+      const nextUser = await fetch("/api/auth/session", { credentials: "include" });
+      if (nextUser.ok) {
+        const data = await nextUser.json();
+        if (data.success) {
+          router.replace(getHomeRoute(data.data.role));
+          router.refresh();
+          return;
+        }
+      }
       router.refresh();
     } catch {
       setError("The server could not be reached. Try again.");

@@ -122,10 +122,10 @@ export function AuthProvider({
   useEffect(() => {
     if (loading) return;
 
-    const publicRoutes = ["/login", "/signup"];
+    const publicRoutes = ["/",];
     if (!user) {
       if (!publicRoutes.includes(pathname)) {
-        router.replace("/login");
+        router.replace("/");
       }
       return;
     }
@@ -156,7 +156,7 @@ export function AuthProvider({
   );
 }
 
-function getHomeRoute(role: UserRole) {
+export function getHomeRoute(role: UserRole) {
   switch (role) {
     case "ops_admin":
       return "/uplode/leads";
@@ -167,13 +167,15 @@ function getHomeRoute(role: UserRole) {
   }
 }
 
-function canAccessRoute(role: UserRole, pathname: string) {
+export function canAccessRoute(role: UserRole, pathname: string) {
   if (role === "ops_admin") {
     return [
       "/",
+      "/leads",
       "/uplode/leads",
       "/uplode/leander",
       "/users/new",
+      "/assigned",
     ].includes(pathname);
   }
 

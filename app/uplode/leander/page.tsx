@@ -1,11 +1,9 @@
 "use client";
 
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
-import Link from "next/link";
-import Nav from "@/component/nav";
+
 type ImportError = { row: number; message: string };
 type ImportResult = { success: boolean; message: string; errors?: ImportError[] };
-import { useAuth } from "@/hooks/useAuth";
 const template = `_doc_id,firstName,lastName,phone,dob,creditScore,employmentTypes,personalEmail,address1,address2,city,state,pinCode,companyName,monthlyIncome,loanAmount
 LEAD-001,Anika,Sharma,9876543210,1992-06-15,742,salaried,anika@example.com,14 Lake View Road,Flat 3B,Pune,Maharashtra,411001,Northstar Finance,85000,1200000`;
 
@@ -15,7 +13,6 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<ImportResult | null>(null);
-  const { isAuthenticated,user } = useAuth()
   const chooseFile = (candidate: File | undefined) => {
     setResult(null);
     if (!candidate) return;
@@ -46,19 +43,6 @@ export default function Home() {
 
   return (
     <main className="workspace-shell">
-      <header className="topbar">
-        <Link className="brand" href="/" aria-label="Lendere home">
-          <span className="brand-mark">L</span>
-          <span>
-            lendere<span className="brand-dot">.</span>
-          </span>
-        </Link>
-        <button onClick={()=>console.log(isAuthenticated)} >log</button>
-        <div className="topbar-status">
-          <span className="status-dot" /> Operations workspace
-        </div>
-      </header>
-
       <section className="hero-section">
         <div className="eyebrow">
           <span>01</span> Lead intake

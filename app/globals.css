@@ -36,11 +36,113 @@ var(--paper);
 }
 .topbar {
     height:92px;
+    max-width:1440px;
+    margin:0 auto;
+    padding:0 7vw;
     border-bottom:1px solid var(--line);
     display:flex;
     align-items:center;
     justify-content:space-between;
+    gap:24px;
     animation:rise .7s ease both;
+}
+
+.topnav {
+    display:flex;
+    align-items:center;
+    gap:4px;
+    flex:1;
+    overflow-x:auto;
+    scrollbar-width:none;
+}
+
+.topnav::-webkit-scrollbar { display:none; }
+
+.topnav-link {
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+    padding:10px 14px;
+    border-radius:6px;
+    color:var(--muted);
+    text-decoration:none;
+    font-size:13px;
+    font-weight:500;
+    white-space:nowrap;
+    transition:color .15s, background .15s;
+}
+
+.topnav-link:hover {
+    color:var(--ink);
+    background:#00000008;
+}
+
+.topnav-link.is-active {
+    color:var(--ink);
+    background:#0000000d;
+}
+
+.topnav-link.is-active .topnav-eyebrow {
+    color:var(--coral);
+}
+
+.topnav-eyebrow {
+    color:var(--line);
+    font:10px 'DM Mono', monospace;
+    letter-spacing:.1em;
+}
+
+.topbar-status {
+    color:var(--muted);
+    font:11px 'DM Mono',
+monospace;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    display:flex;
+    align-items:center;
+    gap:14px;
+}
+
+.topbar-status a {
+    color:var(--coral);
+    text-decoration:none;
+    font-weight:600;
+}
+
+.topbar-user {
+    color:var(--ink);
+    font-family:'Manrope', sans-serif;
+    font-size:12px;
+    font-weight:600;
+    text-transform:none;
+    letter-spacing:0;
+}
+
+.topbar-role {
+    color:var(--muted);
+    font-family:'Manrope', sans-serif;
+    font-size:11px;
+    text-transform:none;
+    letter-spacing:0;
+}
+
+.signout-button {
+    border:1px solid var(--line);
+    background:transparent;
+    color:var(--ink);
+    padding:6px 12px;
+    border-radius:6px;
+    font:11px 'DM Mono', monospace;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    cursor:pointer;
+    transition:border-color .15s, color .15s, background .15s;
+}
+
+.signout-button:hover {
+    border-color:var(--coral);
+    color:var(--coral);
+    background:#fff8f4;
 }
 .brand {
     display:flex;
@@ -65,13 +167,6 @@ serif;
 }
 .brand-dot {
     color:var(--coral);
-}
-.topbar-status {
-    color:var(--muted);
-    font:11px 'DM Mono',
-monospace;
-    letter-spacing:.04em;
-    text-transform:uppercase;
 }
 .status-dot {
     display:inline-block;
@@ -358,11 +453,18 @@ monospace;
     }
 }
 @media (max-width:700px) {
-    .workspace-shell {
+    .workspace-shell,
+    .leads-shell,
+    .assigned-shell {
         padding:0 22px;
     }
     .topbar {
         height:72px;
+        padding:0 22px;
+        gap:12px;
+    }
+    .topnav {
+        display:none;
     }
     .topbar-status {
         display:none;

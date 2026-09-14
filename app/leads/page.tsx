@@ -1,7 +1,6 @@
 "use client"
 
 import axios from "axios";
-import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 type Lead = {
@@ -181,13 +180,6 @@ export default function LeadsPage() {
 
   return (
     <main className="leads-shell">
-      <header className="leads-topbar">
-        <Link className="brand" href="/">
-          <span className="brand-mark">L</span> lendere<span className="brand-dot">.</span>
-        </Link>
-        <span className="topbar-status"><span className="status-dot" /> live lead view</span>
-      </header>
-
       <section className="leads-heading">
         <span className="eyebrow"><span>02</span> borrower leads</span>
         <div className="leads-heading-row">

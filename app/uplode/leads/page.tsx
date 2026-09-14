@@ -1,7 +1,6 @@
 "use client";
 
 import { ChangeEvent, DragEvent, useRef, useState } from "react";
-import Link from "next/link";
 
 type ImportError = { row: number; message: string };
 type ImportResult = { success: boolean; message: string; errors?: ImportError[] };
@@ -45,7 +44,6 @@ export default function Home() {
   };
 
   return <main className="workspace-shell">
-    <header className="topbar"><Link className="brand" href="/" aria-label="Lendere home"><span className="brand-mark">L</span><span>lendere<span className="brand-dot">.</span></span></Link><div className="topbar-status"><span className="status-dot" /> Operations workspace</div></header>
     <section className="hero-section"><div className="eyebrow"><span>01</span> Lead intake</div><div className="hero-grid"><div><h1>Bring your borrower data <em>into focus.</em></h1><p className="hero-copy">Import a clean CSV and turn every row into a structured lead record, ready for the next conversation.</p></div><div className="hero-note"><span className="note-line" /><p>One row becomes one lead.<br />Addresses stay together.</p></div></div></section>
     <section className="work-area"><div className="section-heading"><div><span className="section-kicker">Import centre</span><h2>Upload your lead file</h2></div><button className="template-button" onClick={downloadTemplate} type="button"><span>↓</span> Download template</button></div>
       <div className={`drop-zone ${dragging ? "is-dragging" : ""} ${file ? "has-file" : ""}`} onDragEnter={(event) => { event.preventDefault(); setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={() => setDragging(false)} onDrop={onDrop} onClick={() => inputRef.current?.click()} role="button" tabIndex={0} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") inputRef.current?.click(); }}>

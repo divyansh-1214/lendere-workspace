@@ -1,7 +1,6 @@
 'use client';
 
 import axios from "axios";
-import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import type { AssignedCase, AssignedCasesResponse, CaseStatus } from "@/features/case/case.types";
 
@@ -150,10 +149,6 @@ export default function AssignedPage() {
 
   return (
     <main className="assigned-shell">
-      <header className="assigned-topbar">
-        <Link className="brand" href="/"><span className="brand-mark">L</span> lendere<span className="brand-dot">.</span></Link>
-        <Link className="leads-back" href="/leads">lead directory <span>↗</span></Link>
-      </header>
       <section className="assigned-heading">
         <span className="eyebrow"><span>03</span> agent workspace</span>
         <div className="assigned-heading-row">
