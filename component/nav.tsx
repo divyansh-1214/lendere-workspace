@@ -13,7 +13,8 @@ const roleNav: Record<string, NavItem[]> = {
   ops_admin: [
     { href: "/uplode/leads", label: "Import leads", eyebrow: "01" },
     { href: "/uplode/leander", label: "Import lenders", eyebrow: "02" },
-    { href: "/users/new", label: "Add user", eyebrow: "03" },
+    { href: "/admin/users", label: "Manage users", eyebrow: "03" },
+    { href: "/users/new", label: "Add user", eyebrow: "04" },
     // { href: "/leads", label: "Lead directory", eyebrow: "04" },
   ],
   lender_admin: [

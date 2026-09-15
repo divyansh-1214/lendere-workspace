@@ -572,7 +572,37 @@ var(--paper);
 .assigned-empty { max-width:620px; padding:50px 0; border-top:2px solid var(--ink); }
 .assigned-empty h2 { margin:14px 0 10px; font:500 42px 'Fraunces', serif; }
 .assigned-empty p { color:var(--muted); font-size:14px; line-height:1.7; }
+.admin-users-heading { padding:76px 0 62px; }
+.admin-users-heading-row { display:flex; align-items:end; justify-content:space-between; gap:40px; margin-top:22px; }
+.admin-users-heading h1 { max-width:780px; margin:0; font:500 clamp(44px, 6vw, 78px)/.98 'Fraunces', serif; letter-spacing:-3px; }
+.admin-users-heading h1 em { color:var(--coral); font-style:normal; }
+.admin-users-heading p { max-width:540px; margin:24px 0 0; color:var(--muted); font-size:14px; line-height:1.7; }
+.admin-users-add { display:flex; gap:28px; align-items:center; padding:13px 16px 13px 18px; background:var(--ink); color:var(--paper); text-decoration:none; font-size:12px; font-weight:700; }
+.admin-users-add span { color:var(--coral); font-size:18px; }
+.admin-users-list { max-width:1150px; border-top:2px solid var(--ink); padding-top:25px; }
+.admin-users-controls { display:grid; grid-template-columns:minmax(0, 2fr) repeat(2, minmax(150px, 1fr)); gap:16px; margin-bottom:22px; }
+.admin-users-controls label { color:var(--muted); font:10px 'DM Mono', monospace; text-transform:uppercase; }
+.admin-users-controls input, .admin-users-controls select { display:block; width:100%; margin-top:8px; border:1px solid var(--line); padding:12px; background:var(--cream); color:var(--ink); font:12px 'Manrope', sans-serif; }
+.admin-users-table-wrap { overflow-x:auto; border-top:1px solid var(--line); }
+.admin-users-table { width:100%; border-collapse:collapse; min-width:720px; text-align:left; }
+.admin-users-table th { padding:14px 12px; color:var(--muted); font:10px 'DM Mono', monospace; text-transform:uppercase; }
+.admin-users-table td { padding:17px 12px; border-top:1px solid var(--line); color:var(--muted); font-size:12px; }
+.admin-users-table td:first-child { color:var(--ink); }
+.admin-users-table td strong, .admin-users-table td span { display:block; }
+.admin-users-table td strong { margin-bottom:4px; font-size:13px; }
+.admin-users-table td span { color:var(--muted); }
+.admin-user-status { display:inline-block !important; padding:5px 7px; background:#f1f8ee; color:#527248 !important; font:10px 'DM Mono', monospace !important; text-transform:uppercase; }
+.admin-user-status-invited { background:#fff5df; color:#986d2d !important; }
+.admin-user-status-disabled { background:#fff0ed; color:#a04b42 !important; }
+.admin-user-actions { display:flex; gap:12px; justify-content:flex-end; }
+.admin-user-actions button { border:0; border-bottom:1px solid var(--ink); padding:0 0 4px; background:transparent; color:var(--ink); cursor:pointer; font:10px 'DM Mono', monospace; text-transform:uppercase; }
+.admin-user-actions button:disabled { cursor:wait; opacity:.45; }
+.admin-user-actions .admin-user-delete { color:#a04b42; border-color:#a04b42; }
+.admin-users-error { margin:0 0 18px; padding:12px 14px; border-left:3px solid var(--coral); background:#fff8f4; color:#a04b42; font-size:12px; }
+.admin-users-empty { padding:42px 0; color:var(--muted); font-size:13px; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 @media (max-width:760px) { .assigned-heading-row { display:block; } .assigned-heading .leads-count { margin-top:30px; } .assigned-grid { grid-template-columns:1fr; } .assigned-card-topline { align-items:flex-start; flex-direction:column; } .assigned-date { order:-1; } .assigned-summary { display:grid; grid-template-columns:repeat(3, 1fr); } .assigned-summary div { padding:12px; } .assigned-controls { grid-template-columns:1fr; } }
+@media (max-width:760px) { .admin-users-heading-row { display:block; } .admin-users-add { width:max-content; margin-top:28px; } .admin-users-controls { grid-template-columns:1fr; } }
 .assigned-card.is-selected { border-color:var(--coral); box-shadow:4px 4px 0 rgba(231,111,81,.16); }
 .assigned-card-actions { display:flex; align-items:center; justify-content:space-between; gap:18px; }
 .process-case, .close-workbench, .builder-primary, .builder-secondary, .node-answer-form button { border:0; cursor:pointer; font-size:11px; font-weight:700; }

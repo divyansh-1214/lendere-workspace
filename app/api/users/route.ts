@@ -127,3 +127,33 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+
+export async function PATCH(request: NextRequest) {
+  try {
+    const currentUser = await getAuthenticatedUser(request);
+    if (!currentUser || !requireRole(currentUser, ["ops_admin"])) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
+
+    const body = (await request.json()) as { id?: string; status?: "active" | "disabled" };
+    if (!body.id || !Types.ObjectId.isValid(body.id) || !["active", "disabled"].includes(body.status ?? "")) {
+      return NextResponse.json({ success: false, message: "A valid user id and status are required" }, { status: 400 });
+    }
+
+    await connectDB();
+    const user = await User.findByIdAndUpdate(
+      body.id,
+      { status: body.status },
+      { new: true, runValidators: true }
+    ).select("-passwordHash");
+
+    if (!user) {
+      return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, data: user, message: "User status updated" });
+  } catch (error) {
+    console.error("PATCH /api/users:", error);
+    return NextResponse.json({ success: false, message: "Failed to update user" }, { status: 500 });
+  }
+}
