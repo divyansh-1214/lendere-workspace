@@ -149,6 +149,7 @@ const LeadsSchema = new Schema<ILeads>(
       type: String,
       required: true,
       trim: true,
+      unique:true
     },
     personal: {
       firstName: {
@@ -469,6 +470,7 @@ const LeadsSchema = new Schema<ILeads>(
 LeadsSchema.index({ "contact.phone": 1 });
 LeadsSchema.index({ "identification.pan": 1 });
 LeadsSchema.index({ "contact.personalEmail": 1 });
+LeadsSchema.index({"_doc_id":1},{unique:true})
 
 // Useful for active borrowers
 LeadsSchema.index({ "metadata.active": 1 });

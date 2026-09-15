@@ -4,8 +4,13 @@ import { ChangeEvent, DragEvent, useRef, useState } from "react";
 
 type ImportError = { row: number; message: string };
 type ImportResult = { success: boolean; message: string; errors?: ImportError[] };
-const template = `_doc_id,firstName,lastName,phone,dob,creditScore,employmentTypes,personalEmail,address1,address2,city,state,pinCode,companyName,monthlyIncome,loanAmount
-LEAD-001,Anika,Sharma,9876543210,1992-06-15,742,salaried,anika@example.com,14 Lake View Road,Flat 3B,Pune,Maharashtra,411001,Northstar Finance,85000,1200000`;
+const template = `lender_id,name,isActive,priority,flow,minAge,maxAge,minIncome,minCreditScore_exclusive,maxCreditScore_inclusive,employmentTypes,supportedPincodes,preflight,leadOnly,canShowProvisionalOffer
+ram-fincorp,Ram FinCorp,true,1,OTP,18,58,180000,550,999,salaried+self_employed,ALL,false,false,false
+mudraboxx,Mudraboxx,true,3,OTP,21,60,240000,500,999,salaried+self_employed,ALL,false,false,true
+creditsea-direct,CreditSea,true,4,OTP,20,55,180000,550,999,salaried+self_employed,ALL,true,false,true
+cashvia,Cashvia,true,5,OTP,21,58,240000,575,999,salaried+self_employed,ALL,true,false,false
+smallpocket,Small Pocket,true,6,OTP,21,60,180000,500,999,salaried,ALL,true,false,true
+`;
 
 export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -121,8 +126,8 @@ export default function Home() {
 
         <div className="action-row">
           <p className="mapping-hint">
-            <span>↳</span> Required: _doc_id, first name, last name, phone, DOB,
-            credit score, employment type
+            {/*<span>↳</span> Required: _doc_id, first name, last name, phone, DOB,
+            credit score, employment type*/}
           </p>
           <button
             className="import-button"

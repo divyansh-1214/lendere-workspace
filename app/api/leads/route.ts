@@ -269,10 +269,10 @@ export async function POST(request: NextRequest) {
 
     const imported: unknown[] = [];
     const errors: { row: number; message: string }[] = [];
-
+// Leads.insertMany()
     for (const [index, row] of parsedData.entries()) {
       const sourceRow = index + 2;
-
+      console.log(row)
       try {
         const { lead } = transformLeadRow(row, file.name, sourceRow);
         imported.push(await Leads.create(lead));
