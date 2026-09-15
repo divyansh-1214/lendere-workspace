@@ -14,7 +14,6 @@ export async function GET(request: NextRequest) {
       lenderId: currentUser.lenderId,
       role: "lender_agent"
     }).select("-passwordHash");
-
     return NextResponse.json({
       success: true,
       data: users,

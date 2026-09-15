@@ -64,41 +64,47 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const parsedData = (await neatCsv(await file.text())) as CsvRow[];
-    if (parsedData.length === 0) {
-      return NextResponse.json(
-        { success: false, message: "The CSV file contains no data rows" },
-        { status: 400 }
-      );
-    }
+    setTimeout(async () => {
+      const parsedData = (await neatCsv(await file.text())) as CsvRow[];
 
-    await connectDB();
+      await connectDB();
 
-    const imported: unknown[] = [];
-    const errors: { row: number; message: string }[] = [];
-
-    for (const [index, row] of parsedData.entries()) {
-      const sourceRow = index + 2;
-
-      try {
-        const { lender } = transformLenderRow(row, sourceRow);
-        imported.push(await Lender.create(lender));
-      } catch (error) {
-        errors.push({
-          row: sourceRow,
-          message: error instanceof Error ? error.message : "Invalid lender data",
-        });
+      // const imported: unknown[] = [];
+      const errors: { row: number; message: string }[] = [];
+      const data = []
+      for (const [index, row] of parsedData.entries()) {
+        const sourceRow = index + 2;
+        try {
+          const { lender } = transformLenderRow(row, sourceRow);
+          // imported.push(await Lender.create(lender));
+          data.push({
+            insertOne: {
+              document: lender,
+            },
+          })
+        } catch (error) {
+          errors.push({
+            row: sourceRow,
+            message: error instanceof Error ? error.message : "Invalid lender data",
+          });
+        }
+        if (data.length > 0) {
+          try {
+          await Lender.bulkWrite(data)
+          } catch (error) {
+            console.error("POST /api/leander:", error instanceof Error ? error.message : error);
+          }
+          console.log("Imported", data.length, "lenders")
+          console.log(data)
+        }
       }
-    }
+    }, 3000)
 
     return NextResponse.json(
       {
-        success: errors.length === 0,
-        message: `Imported ${imported.length} of ${parsedData.length} lender(s)`,
-        data: imported,
-        errors,
+        message: `File received`,
       },
-      { status: errors.length === parsedData.length ? 400 : 200 }
+      { status: 202 }
     );
   } catch (error) {
     console.error("POST /api/leander:", error instanceof Error ? error.message : error);
