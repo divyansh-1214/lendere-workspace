@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Types } from "mongoose";
 import { connectDB } from "@/lib/db";
 import User from "@/features/users/user.model";
+import Session from "@/features/users/session.model";
 import { createUser, CreateUserInput, UserRegistrationError } from "@/features/users/user.register";
 import { getAuthenticatedUser, publicUser, requireRole } from "@/lib/auth";
 
@@ -71,6 +73,53 @@ export async function POST(request: NextRequest) {
       {
         success: false,
         message: "Failed to create user",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const currentUser = await getAuthenticatedUser(request);
+    const superAdmin = process.env.SUPER_ADMIN_EMAIL;
+    if (currentUser?.email === superAdmin) {
+      return NextResponse.json({ success: false, message: "Super admin user cannot be deleted" }, { status: 403 });
+    }
+    if (!currentUser || !requireRole(currentUser, ["ops_admin"])) {
+      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    }
+
+    const userId = request.nextUrl.searchParams.get("id");
+    if (!userId || !Types.ObjectId.isValid(userId)) {
+      return NextResponse.json({ success: false, message: "A valid user id is required" }, { status: 400 });
+    }
+
+    if (currentUser._id.toString() === userId) {
+      return NextResponse.json({ success: false, message: "You cannot delete your own user" }, { status: 400 });
+    }
+
+    await connectDB();
+    const deletedUser = await User.findByIdAndDelete(userId).select("_id");
+    if (!deletedUser) {
+      return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+    }
+
+    await Session.deleteMany({ userId: deletedUser._id });
+
+    return NextResponse.json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  } catch (error) {
+    console.error("DELETE /api/users:", error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to delete user",
       },
       {
         status: 500,
