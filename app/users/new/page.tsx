@@ -90,9 +90,9 @@ export default function NewUserPage() {
           <label>Email address<input type="email" value={form.email} onChange={(event) => update("email", event.target.value)} autoComplete="email" required /></label>
           <div className="auth-form-grid">
             <label>Role<select value={form.role} onChange={(event) => update("role", event.target.value)}>{availableRoles.map((role) => <option key={role} value={role}>{roleDetails[role].label}</option>)}</select><small className="field-help">{roleDetails[form.role].description}</small></label>
-            <label>Password<input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} autoComplete="new-password" minLength={8} required /><small className="field-help">Use at least 8 characters.</small></label>
+            <label>Password<input type="password" value={form.password} onChange={(event) => update("password", event.target.value)} autoComplete="new-password" minLength={4} required /><small className="field-help">Use at least 8 characters.</small></label>
           </div>
-          {needsLender && <label>Lender ID<input value={form.lenderId} onChange={(event) => update("lenderId", event.target.value)} placeholder="MongoDB lender ID" required readOnly={!isOpsAdmin} /><small className="field-help">{isOpsAdmin ? "Required for lender roles." : "This user will be added to your lender workspace."}</small></label>}
+          {needsLender && <label>Lender ID<input value={form.lenderId} onChange={(event) => update("lenderId", event.target.value)} placeholder="lender ID" required readOnly={!isOpsAdmin} /><small className="field-help">{isOpsAdmin ? "Required for lender roles." : "This user will be added to your lender workspace."}</small></label>}
           {error && <p className="auth-error" role="alert">{error}</p>}
           {success && <p className="auth-success" role="status">{success}</p>}
           <button className="auth-submit" disabled={submitting} type="submit">{submitting ? "Adding user…" : "Add user"}<span>→</span></button>
