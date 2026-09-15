@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
       const data = await Case.find({ agentId: currentUser._id }).populate("leadId").lean();
       return NextResponse.json({
         success: true,
-        data,
+        assignedLeads: data,
         count: data.length,
         totalCount: data.length,
         pagination: { page: 1, pageSize: data.length, totalPages: 1 },

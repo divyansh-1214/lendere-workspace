@@ -2,44 +2,7 @@
 
 import axios from "axios";
 import { useEffect, useState, type FormEvent } from "react";
-
-type Lead = {
-  _id?: string;
-  _doc_id?: string;
-  personal?: { firstName?: string; lastName?: string; age?: number };
-  contact?: { phone?: string };
-  employment?: { type?: string | null; income?: number | null };
-  credit?: { creditScore?: number | null };
-  addresses?: { city?: string | null; state?: string | null; pinCode?: string | null }[];
-  loan?: { amount?: number | null; purpose?: string | null };
-};
-
-type Agent = { _id: string; name: string; email: string };
-
-type Eligibility = {
-  age: { min: number; max: number };
-  income: { minAnnual: number };
-  creditScore: { minExclusive: number; maxInclusive: number };
-  employmentTypes: string[];
-};
-
-type LeadFilters = {
-  search: string;
-  ageMin: string;
-  ageMax: string;
-  employmentType: string[];
-  incomeMin: string;
-  incomeMax: string;
-  creditMin: string;
-  creditMax: string;
-  state: string;
-  city: string;
-  pincode: string;
-  loanAmountMin: string;
-  loanAmountMax: string;
-  loanPurpose: string;
-  sort: string;
-};
+import type { Lead, LeadFilters, Agent, Eligibility } from "@/features/leads/leads.type";
 
 const initialFilters: LeadFilters = {
   search: "",
@@ -91,7 +54,7 @@ export default function LeadsPage() {
     });
 
     const leadsResponse = await axios.get(`/api/leads?${query.toString()}`);
-    setLeads(leadsResponse.data.data);
+    setLeads(leadsResponse.data.leads);
     const apiEligibility = leadsResponse.data.filters?.eligibility;
     if (apiEligibility) {
       setEligibility({

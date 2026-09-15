@@ -2,17 +2,9 @@
 
 import axios from "axios";
 import { useEffect, useMemo, useState } from "react";
-import type { AssignedCase, AssignedCasesResponse, CaseStatus } from "@/features/case/case.types";
+import type { AssignedCase, AssignedCasesResponse, CaseStatus, CaseNode } from "@/features/case/case.types";
 
-type CaseNode = {
-  _id: string;
-  caseId: string;
-  type: "QUESTION" | "OUTCOME";
-  parentId?: string | null;
-  question?: { text?: string; answerType?: string; options?: { value: string; label: string }[] };
-  answer?: { value?: unknown; label?: string | null };
-  outcome?: { code?: string; label?: string };
-};
+
 
 type CaseNodesResponse = { success: boolean; data: CaseNode[] };
 
@@ -43,22 +35,22 @@ export default function AssignedPage() {
   const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
-  const loadCases = () => {
+  const loadCases = async () => {
     setLoading(true);
     setError("");
     return axios.get<AssignedCasesResponse>("/api/cases")
-      .then((response) => setCases(response.data.data || []))
+      .then((response) => setCases(response.data.assignedLeads || []))
       .catch(() => setError("Unable to load your assigned leads right now. Please try again."))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => {
-    let active = true;
-    axios.get<AssignedCasesResponse>("/api/cases")
-      .then((response) => { if (active) setCases(response.data.data || []); })
-      .catch(() => { if (active) setError("Unable to load your assigned leads right now. Please try again."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    const getCase = async () => {
+      setLoading(true);
+      setError("");
+      await loadCases();
+    }
+    getCase();
   }, []);
 
   const openCase = async (assignedCase: AssignedCase) => {

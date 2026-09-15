@@ -219,7 +219,7 @@ export async function GET(request: NextRequest) {
         pincode,
         sort: query.get("sort") || "newest",
       },
-      data: leads,
+      leads: leads,
     });
   } catch (error) {
     return NextResponse.json(
@@ -280,6 +280,7 @@ export async function POST(request: NextRequest) {
         const imported = leadsToInsert.length > 0
           ? await Leads.insertMany(leadsToInsert, { ordered: false })
           : [];
+        console.log("uplode successfully")
       } catch (error) {
         console.log(error)
       }

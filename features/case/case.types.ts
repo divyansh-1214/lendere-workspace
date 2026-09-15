@@ -27,8 +27,18 @@ export type AssignedCase = {
 
 export type AssignedCasesResponse = {
   success: boolean;
-  data: AssignedCase[];
+  assignedLeads: AssignedCase[];
   count: number;
   totalCount: number;
   pagination: { page: number; pageSize: number; totalPages: number };
+};
+
+export type CaseNode = {
+  _id: string;
+  caseId: string;
+  type: "QUESTION" | "OUTCOME";
+  parentId?: string | null;
+  question?: { text?: string; answerType?: string; options?: { value: string; label: string }[] };
+  answer?: { value?: unknown; label?: string | null };
+  outcome?: { code?: string; label?: string };
 };

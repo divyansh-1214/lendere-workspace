@@ -62,10 +62,8 @@ export function clearSessionCookie(response: NextResponse) {
 
 export async function getAuthenticatedUser(request: NextRequest) {
   const authtoken = request.headers.get("Authorization")?.replace(/^Bearer\s+/, "")?.trim();
+  const token = authtoken ? authtoken : request.cookies.get(SESSION_COOKIE)?.value;
 
-  const token = authtoken? authtoken: request.cookies.get(SESSION_COOKIE)?.value;
-  // store the as the token in the auth header when your are testing with the postman
-  // const token = request.headers.get("Authorization")?.replace(/^Bearer\s+/, "")?.trim();
   if (!token) return null;
   await connectDB();
   const session = await Session.findOne({
