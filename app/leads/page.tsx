@@ -363,7 +363,45 @@ export default function LeadsPage() {
       setLoading(false);
     });
   };
+  useEffect(() => {
+    const pincode = filters.pincode;
+    if (pincode.length !== 6) return;
 
+    const controller = new AbortController();
+    const getPlaceInfo = async () => {
+      try {
+        const response = await axios.get(
+          `/api/pincode/${pincode}`,
+          { signal: controller.signal },
+        );
+        const city = response.data?.data?.city;
+        const state = response.data?.data?.state;
+        if (typeof city === "string" && city.trim()) {
+          updateFilter("city",city)
+          // setFilters((current) => (
+          //   current.pincode === pincode
+          //     ? { ...current, city: city.trim() }
+          //     : current
+          // ));
+
+        }
+        if (typeof state === "string" && state.trim()) {
+          updateFilter("state", state)
+        }
+      } catch (error) {
+        if (!axios.isCancel(error)) {
+          setFilters((current) => (
+            current.pincode === pincode
+              ? { ...current, city: "", state: "" }
+              : current
+          ));
+        }
+      }
+    };
+
+    void getPlaceInfo();
+    return () => controller.abort();
+  }, [filters.pincode]);
   return (
     <main className="leads-shell">
       <section className="leads-heading">
@@ -556,7 +594,7 @@ export default function LeadsPage() {
                   <label>State<input value={filters.state} onChange={(event) => updateFilter("state", event.target.value)} placeholder="e.g. Maharashtra" /></label>
                   <label>City<input value={filters.city} onChange={(event) => updateFilter("city", event.target.value)} placeholder="e.g. Mumbai" /></label>
                 </div>
-                <label className="sidebar-wide">Pincode<input value={filters.pincode} onChange={(event) => updateFilter("pincode", event.target.value)} placeholder="e.g. 400001" /></label>
+                <label className="sidebar-wide">Pincode<input inputMode="numeric" maxLength={6} value={filters.pincode} onChange={(event) => updateFilter("pincode", event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="e.g. 400001" /></label>
               </div>
             </section>
 
