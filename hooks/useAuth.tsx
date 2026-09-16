@@ -172,6 +172,7 @@ export function canAccessRoute(role: UserRole, pathname: string) {
     return [
       "/",
       "/leads",
+      "/leads/assign",
       "/uplode/leads",
       "/uplode/leander",
       "/users/new",

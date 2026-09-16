@@ -897,6 +897,16 @@ monospace;
     text-transform:uppercase;
     letter-spacing:.05em;
 }
+.lead-selection-column {
+    width:34px;
+    padding-right:10px !important;
+}
+.lead-selection-column input {
+    accent-color:var(--coral);
+    width:15px;
+    height:15px;
+    cursor:pointer;
+}
 .leads-table td {
     padding:18px 18px 18px 0;
     border-top:1px solid var(--line);
@@ -1257,6 +1267,44 @@ monospace;
 }
 .leads-error {
     color:#a34d38;
+}
+.leads-selection-summary {
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-top:14px;
+    color:var(--muted);
+    font:11px 'DM Mono', monospace;
+    text-transform:uppercase;
+}
+.leads-selection-actions {
+    display:flex;
+    align-items:center;
+    gap:16px;
+}
+.leads-selection-summary button {
+    border:0;
+    padding:0;
+    background:transparent;
+    color:var(--coral);
+    cursor:pointer;
+    font:inherit;
+    text-transform:inherit;
+}
+.leads-selection-summary .leads-assign-selected {
+    border:1px solid var(--coral);
+    padding:9px 12px;
+    background:var(--coral);
+    color:#fff;
+    cursor:pointer;
+}
+.leads-selection-summary .leads-assign-selected:hover:not(:disabled) {
+    background:#d65f42;
+}
+.leads-selection-summary .leads-assign-selected:disabled {
+    cursor:not-allowed;
+    opacity:.45;
 }
 .leads-pagination {
     display:flex;

@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
 
     const existing = await Case.exists({ lenderId: currentUser.lenderId, leadId });
     if (existing) return NextResponse.json({ success: false, message: "Lead is already assigned" }, { status: 409 });
-    console.log(currentUser._id);
+    // console.log(currentUser._id);
     const assignment = await Case.create({
       leadId,
       lenderId: currentUser.lenderId,

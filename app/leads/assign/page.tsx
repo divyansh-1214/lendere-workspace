@@ -41,9 +41,6 @@ export default function LeadsPage() {
   const [assigningLead, setAssigningLead] = useState<string | null>(null);
   const [assignmentError, setAssignmentError] = useState("");
   const [assignmentNotice, setAssignmentNotice] = useState("");
-  const [bulkAssigning, setBulkAssigning] = useState(false);
-  const [bulkAssignmentError, setBulkAssignmentError] = useState("");
-  const [bulkAssignmentNotice, setBulkAssignmentNotice] = useState("");
   const [selectedLeadIds, setSelectedLeadIds] = useState<string[]>(() => {
     if (typeof window === "undefined") return [];
 
@@ -195,28 +192,7 @@ export default function LeadsPage() {
     });
   };
 
-  const assignAutomatically = async () => {
-    if (selectedLeadIds.length === 0 || bulkAssigning) return;
 
-    setBulkAssigning(true);
-    setBulkAssignmentError("");
-    setBulkAssignmentNotice("");
-    try {
-      const response = await axios.post("/api/leads/assign", { leadId: selectedLeadIds });
-      if (response.data.success) {
-        setSelectedLeadIds([]);
-        setBulkAssignmentNotice(`${selectedLeadIds.length} lead${selectedLeadIds.length === 1 ? "" : "s"} sent for automatic assignment.`);
-      } else {
-        setBulkAssignmentError(response.data.message || "Unable to assign selected leads.");
-      }
-    } catch (assignmentRequestError) {
-      setBulkAssignmentError(axios.isAxiosError(assignmentRequestError)
-        ? assignmentRequestError.response?.data?.message || "Unable to assign selected leads."
-        : "Unable to assign selected leads.");
-    } finally {
-      setBulkAssigning(false);
-    }
-  };
   return (
     <main className="leads-shell">
       <section className="leads-heading">
@@ -248,7 +224,7 @@ export default function LeadsPage() {
         </section>
       )}
 
-      {/* {agents.length > 0 && (
+      {agents.length > 0 && (
         <section className="assignment-panel" aria-labelledby="assignment-title">
           <div className="assignment-panel-heading">
             <div>
@@ -286,9 +262,9 @@ export default function LeadsPage() {
             </div>
           )}
         </section>
-      )} */}
+      )}
 
-      <form className="lead-filters" onSubmit={submitFilters}>
+      {/* <form className="lead-filters" onSubmit={submitFilters}>
         <div className="lead-filters-heading">
           <div>
             <span className="section-kicker">refine results</span>
@@ -365,20 +341,13 @@ export default function LeadsPage() {
         </div>
         <div className="leads-selection-summary" aria-live="polite">
           <span>{selectedLeadIds.length} lead{selectedLeadIds.length === 1 ? "" : "s"} selected{selectedOnPageCount > 0 ? ` · ${selectedOnPageCount} on this page` : ""}</span>
-          <div className="leads-selection-actions">
-            <button className="leads-assign-selected" type="button" onClick={assignAutomatically} disabled={selectedLeadIds.length === 0 || bulkAssigning}>
-              {bulkAssigning ? "Assigning..." : "Assign selected →"}
-            </button>
-            {selectedLeadIds.length > 0 && <button type="button" onClick={clearSelectedLeads}>Clear selection</button>}
-          </div>
+          {selectedLeadIds.length > 0 && <button type="button" onClick={clearSelectedLeads}>Clear selection</button>}
         </div>
-        {bulkAssignmentError && <p className="leads-error">{bulkAssignmentError}</p>}
-        {bulkAssignmentNotice && <p className="assignment-notice">{bulkAssignmentNotice}</p>}
         {totalPages > 0 && <nav className="leads-pagination" aria-label="Lead pages">
           <span>Page {page} of {totalPages}</span>
           <div><button type="button" onClick={() => changePage(page - 1)} disabled={page === 1 || loading}>← Previous</button><button type="button" onClick={() => changePage(page + 1)} disabled={page === totalPages || loading}>Next →</button></div>
         </nav>}
-      </section>
+      </section> */}
     </main>
   );
 }

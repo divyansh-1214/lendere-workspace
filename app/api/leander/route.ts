@@ -5,7 +5,7 @@ import Lender from "@/features/leander/leander.model";
 import { transformLenderRow } from "@/features/leander/leander-import";
 import type { CsvRow } from "@/features/leads/lead-import";
 import { getAuthenticatedUser, requireRole } from "@/lib/auth";
-
+import { after } from 'next/server'
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
         }
         if (data.length > 0) {
           try {
-          await Lender.bulkWrite(data)
+            await Lender.bulkWrite(data)
           } catch (error) {
             console.error("POST /api/leander:", error instanceof Error ? error.message : error);
           }
