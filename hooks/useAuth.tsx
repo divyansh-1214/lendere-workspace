@@ -172,7 +172,6 @@ export function canAccessRoute(role: UserRole, pathname: string) {
     return [
       "/",
       "/leads",
-      "/leads/assign",
       "/uplode/leads",
       "/uplode/leander",
       "/users/new",
@@ -182,7 +181,7 @@ export function canAccessRoute(role: UserRole, pathname: string) {
   }
 
   if (role === "lender_admin") {
-    return ["/leads", "/assigned", "/users/new"].includes(pathname);
+    return ["/leads", "/assigned", "/users/new", "/leads/assign"].includes(pathname);
   }
 
   return pathname === "/assigned";
