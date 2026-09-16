@@ -12,13 +12,13 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Lendere Workspace Project Context
 
-Last updated: 2026-09-15
+Last updated: 2026-09-16
 
 ## Project Overview
 
 - This is a Next.js 16.3.4 App Router application using React 19.2.8, TypeScript 5, Tailwind CSS 4, MongoDB 7, Mongoose 9.9.5, Axios, and `neat-csv`.
 - The product is a lender operations workspace with authentication, lender CSV import, borrower CSV import, lender eligibility matching, and a paginated leads review screen.
-- The workspace also includes a role-aware user creation page and lender-agent listing endpoint.
+- The workspace also includes role-aware user creation, ops-admin user management, and a bulk auto-assignment flow for selected leads.
 - The workspace includes lender-agent lead assignment and an assigned-case workflow with question, answer, and outcome nodes.
 - Three user roles define the application flow: `ops_admin` (full workspace), `lender_admin` (single-lender workspace + team), and `lender_agent` (assigned-cases queue only).
 - MongoDB is the only persistence layer. Mongoose models are cached through `lib/db.ts`.
@@ -49,8 +49,8 @@ Last updated: 2026-09-15
 - **Authenticated redirect**: If a signed-in user lands on a public route or on a route outside their role's allowed list (checked via `canAccessRoute`), they are routed to their home route instead.
 - **Login page** (`app/(auth)/(login)/page.tsx`) itself mirrors this: after `login()` succeeds it re-fetches `/api/auth/session`, reads the role, and `router.replace(getHomeRoute(role))` rather than pushing to a generic `/`.
 - **Route access list** (mirror in `canAccessRoute`):
-  - `ops_admin` can visit: `/uplode/leads`, `/uplode/leander`, `/leads`, `/assigned`, `/users/new`
-  - `lender_admin` can visit: `/leads`, `/assigned`, `/users/new`
+  - `ops_admin` can visit: `/uplode/leads`, `/uplode/leander`, `/leads`, `/assigned`, `/users/new`, `/admin/users`
+  - `lender_admin` can visit: `/leads`, `/assigned`, `/users/new`, `/leads/assign`
   - `lender_agent` can visit: `/assigned`
 
 ## Important Locations
@@ -59,23 +59,28 @@ Last updated: 2026-09-15
 - `app/(auth)/(login)/page.tsx`: sign-in page, redirects signed-in users and post-login to role home.
 - `app/uplode/leads/page.tsx`: ops-admin lead CSV import workspace and upload interaction.
 - `app/uplode/leander/page.tsx`: ops-admin lender CSV import workspace.
-- `app/leads/page.tsx`: lender-admin lead directory with eligibility summary, filters, pagination, and free-lead agent assignment.
+- `app/leads/page.tsx`: lender-admin lead directory with eligibility summary, filters, pagination, free-lead assignment, and bulk assignment selection.
+- `app/leads/assign/page.tsx`: direct assignment workspace and lead screening flow in the lender admin area.
 - `app/assigned/page.tsx`: agent (and lender-admin) assigned-case workspace with search, status filtering, case details, and case-path editing.
+- `app/admin/users/page.tsx`: ops-admin workspace for listing users, filtering by role and status, reactivating or disabling accounts, and deleting users.
 - `app/users/new/page.tsx`: authenticated role-aware form for creating workspace users (ops_admin creates any role; lender_admin creates lender_agent only).
 - `app/globals.css`: global visual system, topbar + topnav styles, and responsive breakpoints for the workspace shells.
 - `component/nav.tsx`: global role-aware Nav component consumed by `app/layout.tsx`.
 - `hooks/useAuth.tsx`: React Context `AuthProvider`, `useAuth()` hook, and exported `getHomeRoute` / `canAccessRoute` helpers.
 - `app/api/leads/route.ts`: authenticated lead CSV upload endpoint (ops_admin) and paginated lead filtering endpoint (lender_admin / ops_admin).
+- `app/api/leads/assign/route.ts`: authenticated bulk assignment endpoint for a lender admin to assign an array of eligible leads to the lowest-load active agent.
 - `app/api/leander/route.ts`: authenticated current-lender lookup endpoint (`ops_admin` or `lender_admin`) and asynchronous lender CSV upload endpoint at `POST /api/leander` (`ops_admin` only).
 - `features/leads/lead.model.ts`: Mongoose lead schema and indexes.
 - `features/leads/lead-import.ts`: CSV header normalization, validation, type conversion, and mapping into the lead model shape.
 - `features/leander/leander.model.ts`: lender configuration model with eligibility, routing-flow, geography, lead-limit, preflight, application, and offer settings.
+- `features/users/user.model.ts`: user schema, role types, lender linkage, and counters for assigned vs completed leads.
 - `features/users/user.register.ts`: typed user creation, password hashing, lender ID validation, and lender existence checks.
 - `features/leander/leander-import.ts`: lender CSV header normalization, validation, type conversion, and mapping into the lender model shape.
+- `features/case/case.register.ts`: bulk assignment helper that chooses the active agent with the least assigned leads and creates case records.
 - `lib/db.ts`: cached Mongoose connection using `MONGODB_URI`.
 - `lib/auth.ts`: server-side session lookup, password hashing, user authorization, and public user helpers.
 - `app/api/auth/**`: login, logout, session, forgot-password, and reset-password endpoints.
-- `app/api/users/route.ts`: user administration endpoint. `GET` requires `ops_admin` and excludes `passwordHash`; `POST` accepts `ops_admin` or `lender_admin`, returns a public user shape, and restricts `ops_admin`/`lender_admin` account creation to an `ops_admin`.
+- `app/api/users/route.ts`: user administration endpoint. `GET` requires `ops_admin` and excludes `passwordHash`; `POST` accepts `ops_admin` or `lender_admin`, returns a public user shape, and restricts `ops_admin`/`lender_admin` account creation to an `ops_admin`; `PATCH` toggles active/disabled status and `DELETE` removes records.
 - `app/api/users/agents/route.ts`: authenticated lender-agent listing endpoint scoped to the current lender admin's `lenderId`.
 - `app/api/cases/route.ts`: authenticated case assignment endpoint (POST lender_admin) and assigned/free lead listing (GET lender_admin / lender_agent).
 - `app/api/cases/node/route.ts`: authenticated `lender_agent` case-path endpoint for creating questions/outcomes and submitting answers. Node writes run in a MongoDB transaction and return the created node plus the updated case.
@@ -108,6 +113,7 @@ Last updated: 2026-09-15
 - `POST /api/cases/node` is restricted to `lender_agent` and accepts `action: "create"` or `action: "answer"`. Agents can create `QUESTION` nodes with answer types `TEXT`, `NUMBER`, `BOOLEAN`, `SINGLE_SELECT`, or `MULTI_SELECT`, submit answers to question nodes, and create `OUTCOME` nodes.
 - Creating the first node moves a case from `ASSIGNED` to `IN_PROGRESS`; an outcome changes the case to `COMPLETED`, `REJECTED`, or `CANCELLED`. Closed cases cannot be modified.
 - Case events record node creation, answer submission, case start, outcome creation, and case completion. Preserve the `Case`, `CaseNode`, and `CaseEvent` model relationships when changing the workflow.
+- `POST /api/leads/assign` is the bulk assignment endpoint used by the lender-admin dashboard. It accepts an array of `leadId`s, validates that the caller is a `lender_admin`, and uses `features/case/case.register.ts` to assign each lead to the active agent with the lowest current assignment count. The user counters `numberOfAssignedLeads` and `numberOfCompletedLeads` are maintained on the `User` model and used to balance the queue.
 
 ## Lead Filtering And Pagination
 
