@@ -59,7 +59,10 @@ export default function LeadsPage() {
   });
 
   const pageLeadIds = useMemo(
-    () => leads.map((lead) => lead._id || lead._doc_id).filter((id): id is string => Boolean(id)),
+    () => leads
+      .filter((lead) => !lead.isAssigned)
+      .map((lead) => lead._id || lead._doc_id)
+      .filter((id): id is string => Boolean(id)),
     [leads],
   );
   const selectedOnPageCount = useMemo(
@@ -77,6 +80,9 @@ export default function LeadsPage() {
   }, [selectedLeadIds]);
 
   const toggleLeadSelection = (leadId: string) => {
+    const lead = leads.find((item) => (item._id || item._doc_id) === leadId);
+    if (lead?.isAssigned) return;
+
     setSelectedLeadIds((current) => current.includes(leadId)
       ? current.filter((id) => id !== leadId)
       : [...current, leadId]);
@@ -196,16 +202,21 @@ export default function LeadsPage() {
   };
 
   const assignAutomatically = async () => {
-    if (selectedLeadIds.length === 0 || bulkAssigning) return;
+    const selectableLeadIds = selectedLeadIds.filter((leadId) => {
+      const lead = leads.find((item) => (item._id || item._doc_id) === leadId);
+      return !lead?.isAssigned;
+    });
+
+    if (selectableLeadIds.length === 0 || bulkAssigning) return;
 
     setBulkAssigning(true);
     setBulkAssignmentError("");
     setBulkAssignmentNotice("");
     try {
-      const response = await axios.post("/api/leads/assign", { leadId: selectedLeadIds });
+      const response = await axios.post("/api/leads/assign", { leadId: selectableLeadIds });
       if (response.data.success) {
-        setSelectedLeadIds([]);
-        setBulkAssignmentNotice(`${selectedLeadIds.length} lead${selectedLeadIds.length === 1 ? "" : "s"} sent for automatic assignment.`);
+        setSelectedLeadIds((current) => current.filter((id) => !selectableLeadIds.includes(id)));
+        setBulkAssignmentNotice(`${selectableLeadIds.length} lead${selectableLeadIds.length === 1 ? "" : "s"} sent for automatic assignment.`);
       } else {
         setBulkAssignmentError(response.data.message || "Unable to assign selected leads.");
       }
@@ -350,16 +361,35 @@ export default function LeadsPage() {
           {loading ? <p className="leads-state">Loading matched leads...</p> : leads.length === 0 ? <p className="leads-state">No leads match this lender&apos;s rules.</p> : (
             <table className="leads-table">
               <thead><tr><th className="lead-selection-column"><input type="checkbox" aria-label="Select all leads on this page" checked={allPageLeadsSelected} onChange={togglePageSelection} /></th><th>Borrower</th><th>Contact</th><th>Age</th><th>Employment</th><th>Income</th><th>Credit</th><th>Location</th></tr></thead>
-              <tbody>{leads.map((lead) => <tr key={lead._doc_id}>
-                <td className="lead-selection-column"><input type="checkbox" aria-label={`Select ${lead.personal?.firstName || "lead"}`} checked={Boolean((lead._id || lead._doc_id) && selectedLeadIds.includes(lead._id || lead._doc_id || ""))} onChange={() => { const leadId = lead._id || lead._doc_id; if (leadId) toggleLeadSelection(leadId); }} /></td>
-                <td><strong>{lead.personal?.firstName} {lead.personal?.lastName}</strong><small>{lead._doc_id}</small></td>
-                <td>{lead.contact?.phone || "—"}</td>
-                <td>{lead.personal?.age ?? "—"}</td>
-                <td>{lead.employment?.type?.replace("_", " ") || "—"}</td>
-                <td>{lead.employment?.income ? `₹${lead.employment.income.toLocaleString()}` : "—"}</td>
-                <td>{lead.credit?.creditScore ?? "—"}</td>
-                <td>{[lead.addresses?.[0]?.city, lead.addresses?.[0]?.state].filter(Boolean).join(", ") || "—"}</td>
-              </tr>)}</tbody>
+              <tbody>{leads.map((lead) => {
+                const leadId = lead._id || lead._doc_id || "";
+                const isAssigned = Boolean(lead.isAssigned);
+
+                return <tr key={lead._doc_id || leadId} className={isAssigned ? "is-assigned-row" : ""}>
+                  <td className="lead-selection-column">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select ${lead.personal?.firstName || "lead"}`}
+                      checked={Boolean(leadId && selectedLeadIds.includes(leadId))}
+                      disabled={isAssigned}
+                      onChange={() => {
+                        if (leadId) toggleLeadSelection(leadId);
+                      }}
+                    />
+                  </td>
+                  <td>
+                    <strong>{lead.personal?.firstName} {lead.personal?.lastName}</strong>
+                    <small>{lead._doc_id}</small>
+                    {isAssigned && <span className="lead-assigned-badge">Assigned</span>}
+                  </td>
+                  <td>{lead.contact?.phone || "—"}</td>
+                  <td>{lead.personal?.age ?? "—"}</td>
+                  <td>{lead.employment?.type?.replace("_", " ") || "—"}</td>
+                  <td>{lead.employment?.income ? `₹${lead.employment.income.toLocaleString()}` : "—"}</td>
+                  <td>{lead.credit?.creditScore ?? "—"}</td>
+                  <td>{[lead.addresses?.[0]?.city, lead.addresses?.[0]?.state].filter(Boolean).join(", ") || "—"}</td>
+                </tr>;
+              })}</tbody>
             </table>
           )}
         </div>

@@ -1,6 +1,7 @@
 export type Lead = {
   _id?: string;
   _doc_id?: string;
+  isAssigned?: boolean;
   personal?: { firstName?: string; lastName?: string; age?: number };
   contact?: { phone?: string };
   employment?: { type?: string | null; income?: number | null };

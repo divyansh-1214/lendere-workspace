@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { set, type SortOrder } from "mongoose";
+import {
+  positiveIntegerQuery,
+  optionalNumberQuery,
+  optionalTextQuery,
+  escapeRegex,
+  listQuery,
+  sortQuery,
+} from "@/features/leads/leads.services";
 import neatCsv from "neat-csv";
 import { connectDB } from "@/lib/db";
 import Leads from "@/features/leads/lead.model";
@@ -7,62 +14,18 @@ import Lender from "@/features/leander/leander.model";
 import { transformLeadRow, type CsvRow } from "@/features/leads/lead-import";
 import { getAuthenticatedUser, requireRole } from "@/lib/auth";
 import type { ILeads } from "@/features/leads/lead.model";
-const positiveIntegerQuery = (value: string | null, fallback: number, maximum?: number) => {
-  if (value === null || value.trim() === "") return fallback;
-
-  const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1) {
-    throw new Error("page and pageSize must be positive integers");
-  }
-
-  return maximum ? Math.min(parsed, maximum) : parsed;
-};
-
-const optionalNumberQuery = (value: string | null, name: string, minimum = 0) => {
-  if (value === null || value.trim() === "") return undefined;
-
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed < minimum) {
-    throw new Error(`${name} must be a number greater than or equal to ${minimum}`);
-  }
-  const maximum = name === "age" ? 120 : undefined;
-  return maximum ? Math.min(parsed, maximum) : parsed;
-};
-
-const optionalTextQuery = (value: string | null) => {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : undefined;
-};
-
-const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-const listQuery = (query: URLSearchParams, name: string) =>
-  query.getAll(name)
-    .flatMap((value) => value.split(","))
-    .map((value) => value.trim())
-    .filter(Boolean);
-
-const sortQuery = (value: string | undefined): Record<string, SortOrder> => {
-  switch (value) {
-    case "oldest":
-      return { "metadata.createdAt": 1, _id: 1 };
-    case "highestCreditScore":
-      return { "credit.creditScore": -1, "metadata.createdAt": -1, _id: -1 };
-    case "highestIncome":
-      return { "employment.income": -1, "metadata.createdAt": -1, _id: -1 };
-    case undefined:
-    case "newest":
-      return { "metadata.createdAt": -1, _id: -1 };
-    default:
-      throw new Error("sort must be newest, oldest, highestCreditScore, or highestIncome");
-  }
-};
 
 export async function GET(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
-    if (!currentUser || !requireRole(currentUser, ["lender_admin", "ops_admin"])) {
-      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+    if (
+      !currentUser ||
+      !requireRole(currentUser, ["lender_admin", "ops_admin"])
+    ) {
+      return NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 },
+      );
     }
     const query = request.nextUrl.searchParams;
     const page = positiveIntegerQuery(query.get("page"), 1);
@@ -73,18 +36,41 @@ export async function GET(request: NextRequest) {
       age: { min: 10, max: 100 },
       income: { minAnnual: 10000 },
       creditScore: { minExclusive: 300, maxInclusive: 850 },
-      employmentTypes: ["salaried", "self_employed", "business", "professional"],
+      employmentTypes: [
+        "salaried",
+        "self_employed",
+        "business",
+        "professional",
+      ],
     };
     const eligibleEmploymentTypes = eligibility.employmentTypes as string[];
 
     const requestedAgeMin = optionalNumberQuery(query.get("ageMin"), "ageMin");
     const requestedAgeMax = optionalNumberQuery(query.get("ageMax"), "ageMax");
-    const requestedIncomeMin = optionalNumberQuery(query.get("incomeMin"), "incomeMin");
-    const requestedIncomeMax = optionalNumberQuery(query.get("incomeMax"), "incomeMax");
-    const requestedCreditMin = optionalNumberQuery(query.get("creditMin"), "creditMin");
-    const requestedCreditMax = optionalNumberQuery(query.get("creditMax"), "creditMax");
-    const requestedLoanAmountMin = optionalNumberQuery(query.get("loanAmountMin"), "loanAmountMin");
-    const requestedLoanAmountMax = optionalNumberQuery(query.get("loanAmountMax"), "loanAmountMax");
+    const requestedIncomeMin = optionalNumberQuery(
+      query.get("incomeMin"),
+      "incomeMin",
+    );
+    const requestedIncomeMax = optionalNumberQuery(
+      query.get("incomeMax"),
+      "incomeMax",
+    );
+    const requestedCreditMin = optionalNumberQuery(
+      query.get("creditMin"),
+      "creditMin",
+    );
+    const requestedCreditMax = optionalNumberQuery(
+      query.get("creditMax"),
+      "creditMax",
+    );
+    const requestedLoanAmountMin = optionalNumberQuery(
+      query.get("loanAmountMin"),
+      "loanAmountMin",
+    );
+    const requestedLoanAmountMax = optionalNumberQuery(
+      query.get("loanAmountMax"),
+      "loanAmountMax",
+    );
     const loanAmountMin = requestedLoanAmountMin;
     const loanAmountMax = requestedLoanAmountMax;
     const requestedEmploymentTypes = listQuery(query, "employmentType");
@@ -95,22 +81,44 @@ export async function GET(request: NextRequest) {
     const loanPurpose = optionalTextQuery(query.get("loanPurpose"));
     const sort = sortQuery(optionalTextQuery(query.get("sort")));
 
-    if (requestedAgeMin !== undefined && requestedAgeMax !== undefined && requestedAgeMin > requestedAgeMax) {
+    if (
+      requestedAgeMin !== undefined &&
+      requestedAgeMax !== undefined &&
+      requestedAgeMin > requestedAgeMax
+    ) {
       throw new Error("ageMin cannot exceed ageMax");
     }
-    if (requestedIncomeMin !== undefined && requestedIncomeMax !== undefined && requestedIncomeMin > requestedIncomeMax) {
+    if (
+      requestedIncomeMin !== undefined &&
+      requestedIncomeMax !== undefined &&
+      requestedIncomeMin > requestedIncomeMax
+    ) {
       throw new Error("incomeMin cannot exceed incomeMax");
     }
-    if (requestedCreditMin !== undefined && requestedCreditMax !== undefined && requestedCreditMin >= requestedCreditMax) {
+    if (
+      requestedCreditMin !== undefined &&
+      requestedCreditMax !== undefined &&
+      requestedCreditMin >= requestedCreditMax
+    ) {
       throw new Error("creditMin must be less than creditMax");
     }
-    if (requestedLoanAmountMin !== undefined && requestedLoanAmountMax !== undefined && requestedLoanAmountMin > requestedLoanAmountMax) {
+    if (
+      requestedLoanAmountMin !== undefined &&
+      requestedLoanAmountMax !== undefined &&
+      requestedLoanAmountMin > requestedLoanAmountMax
+    ) {
       throw new Error("loanAmountMin cannot exceed loanAmountMax");
     }
 
-    if (requestedEmploymentTypes.length > 0 &&
-      requestedEmploymentTypes.every((type) => !eligibleEmploymentTypes.includes(type))) {
-      throw new Error("The requested employment type is outside lender eligibility");
+    if (
+      requestedEmploymentTypes.length > 0 &&
+      requestedEmploymentTypes.every(
+        (type) => !eligibleEmploymentTypes.includes(type),
+      )
+    ) {
+      throw new Error(
+        "The requested employment type is outside lender eligibility",
+      );
     }
 
     const eligibilityFilter: Record<string, unknown> = {
@@ -132,14 +140,22 @@ export async function GET(request: NextRequest) {
     }
     if (requestedIncomeMin !== undefined || requestedIncomeMax !== undefined) {
       requestedFilter["employment.income"] = {
-        ...(requestedIncomeMin !== undefined ? { $gte: requestedIncomeMin } : {}),
-        ...(requestedIncomeMax !== undefined ? { $lte: requestedIncomeMax } : {}),
+        ...(requestedIncomeMin !== undefined
+          ? { $gte: requestedIncomeMin }
+          : {}),
+        ...(requestedIncomeMax !== undefined
+          ? { $lte: requestedIncomeMax }
+          : {}),
       };
     }
     if (requestedCreditMin !== undefined || requestedCreditMax !== undefined) {
       requestedFilter["credit.creditScore"] = {
-        ...(requestedCreditMin !== undefined ? { $gte: requestedCreditMin } : {}),
-        ...(requestedCreditMax !== undefined ? { $lte: requestedCreditMax } : {}),
+        ...(requestedCreditMin !== undefined
+          ? { $gte: requestedCreditMin }
+          : {}),
+        ...(requestedCreditMax !== undefined
+          ? { $lte: requestedCreditMax }
+          : {}),
       };
     }
     if (requestedEmploymentTypes.length) {
@@ -156,9 +172,12 @@ export async function GET(request: NextRequest) {
     }
     if (state || city || pincode) {
       const addressFilter: Record<string, unknown> = {};
-      if (state) addressFilter.state = { $regex: escapeRegex(state), $options: "i" };
-      if (city) addressFilter.city = { $regex: escapeRegex(city), $options: "i" };
-      if (pincode) addressFilter.pinCode = { $regex: escapeRegex(pincode), $options: "i" };
+      if (state)
+        addressFilter.state = { $regex: escapeRegex(state), $options: "i" };
+      if (city)
+        addressFilter.city = { $regex: escapeRegex(city), $options: "i" };
+      if (pincode)
+        addressFilter.pinCode = { $regex: escapeRegex(pincode), $options: "i" };
       requestedFilter.addresses = { $elemMatch: addressFilter };
     }
     if (loanAmountMin !== undefined || loanAmountMax !== undefined) {
@@ -167,20 +186,44 @@ export async function GET(request: NextRequest) {
         ...(loanAmountMax !== undefined ? { $lte: loanAmountMax } : {}),
       };
     }
-    if (loanPurpose) requestedFilter["loan.purpose"] = { $regex: escapeRegex(loanPurpose), $options: "i" };
+    if (loanPurpose)
+      requestedFilter["loan.purpose"] = {
+        $regex: escapeRegex(loanPurpose),
+        $options: "i",
+      };
     const filter = Object.keys(requestedFilter).length
       ? { $and: [eligibilityFilter, requestedFilter] }
       : eligibilityFilter;
 
     await connectDB();
-    const [totalCount, leads] = await Promise.all([
-      Leads.countDocuments(filter),
-      Leads.find(filter)
-        .sort(sort)
-        .skip((page - 1) * pageSize)
-        .limit(pageSize)
-        .lean(),
+
+    const [totalCountResult, leads] = await Promise.all([
+      Leads.aggregate([
+        { $match: filter },
+        { $count: "totalCount" },
+      ]),
+      Leads.aggregate([
+        { $match: filter },
+        {
+          $lookup: {
+            from: "cases",
+            localField: "_id",
+            foreignField: "leadId",
+            as: "caseData",
+          },
+        },
+        {
+          $addFields: {
+            isAssigned: { $gt: [{ $size: "$caseData" }, 0] },
+          },
+        },
+        { $sort: sort },
+        { $skip: (page - 1) * pageSize },
+        { $limit: pageSize },
+      ]),
     ]);
+
+    const totalCount = totalCountResult[0]?.totalCount ?? 0;
 
     return NextResponse.json({
       success: true,
@@ -225,9 +268,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         success: false,
-        message: error instanceof Error ? error.message : "Failed to filter leads",
+        message:
+          error instanceof Error ? error.message : "Failed to filter leads",
       },
-      { status: 400 }
+      { status: 400 },
     );
   }
 }
@@ -245,17 +289,26 @@ export async function POST(request: NextRequest) {
   try {
     const currentUser = await getAuthenticatedUser(request);
     if (!currentUser || !requireRole(currentUser, ["ops_admin"])) {
-      return NextResponse.json({ success: false, message: "Forbidden" }, { status: 403 });
+      return NextResponse.json(
+        { success: false, message: "Forbidden" },
+        { status: 403 },
+      );
     }
     const formData = await request.formData();
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ success: false, message: "A CSV file is required" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "A CSV file is required" },
+        { status: 400 },
+      );
     }
 
     if (!file.name.toLowerCase().endsWith(".csv")) {
-      return NextResponse.json({ success: false, message: "Only CSV files are supported" }, { status: 400 });
+      return NextResponse.json(
+        { success: false, message: "Only CSV files are supported" },
+        { status: 400 },
+      );
     }
 
     setTimeout(async () => {
@@ -272,33 +325,34 @@ export async function POST(request: NextRequest) {
         } catch (error) {
           errors.push({
             row: sourceRow,
-            message: error instanceof Error ? error.message : "Invalid lead data",
+            message:
+              error instanceof Error ? error.message : "Invalid lead data",
           });
         }
       }
       try {
-        const imported = leadsToInsert.length > 0
-          ? await Leads.insertMany(leadsToInsert, { ordered: false })
-          : [];
-        console.log("uplode successfully")
-      } catch (error) {
-        console.log(error)
+        if (leadsToInsert.length > 0) {
+          await Leads.insertMany(leadsToInsert, { ordered: false });
+        }
+      } catch {
+        // Keep background import resilient without exposing row-level errors.
       }
-      // console.log("thet data has be uploded", imported)
     }, 3000);
-
 
     return NextResponse.json(
       {
         message: `File received`,
       },
-      { status: 202 }
+      { status: 202 },
     );
   } catch (error) {
     console.error("POST /api/csv:", error);
-    return NextResponse.json({
-      success: false,
-      message: "Failed to import CSV",
-    }, { status: 500 });
+    return NextResponse.json(
+      {
+        success: false,
+        message: "Failed to import CSV",
+      },
+      { status: 500 },
+    );
   }
 }
