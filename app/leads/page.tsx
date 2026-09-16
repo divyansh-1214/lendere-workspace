@@ -591,10 +591,10 @@ export default function LeadsPage() {
               </button>
               <div className="sidebar-section-body">
                 <div className="sidebar-field">
-                  <label>State<input value={filters.state} onChange={(event) => updateFilter("state", event.target.value)} placeholder="e.g. Maharashtra" /></label>
-                  <label>City<input value={filters.city} onChange={(event) => updateFilter("city", event.target.value)} placeholder="e.g. Mumbai" /></label>
-                </div>
+                  <label className="sidebar-wide">State<input value={filters.state} onChange={(event) => updateFilter("state", event.target.value)} placeholder="e.g. Maharashtra" /></label>
+                  <label className="sidebar-wide">City<input value={filters.city} onChange={(event) => updateFilter("city", event.target.value)} placeholder="e.g. Mumbai" /></label>
                 <label className="sidebar-wide">Pincode<input inputMode="numeric" maxLength={6} value={filters.pincode} onChange={(event) => updateFilter("pincode", event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="e.g. 400001" /></label>
+                </div>
               </div>
             </section>
 
