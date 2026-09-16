@@ -16,6 +16,9 @@ export interface IUser extends Document {
 
   status: "invited" | "active" | "disabled";
 
+  numberOfAssignedLeads: number;
+  numberOfCompletedLeads: number;
+  
   createdAt: Date;
   updatedAt: Date;
 }
@@ -65,6 +68,14 @@ const UserSchema = new Schema<IUser>(
         "disabled",
       ],
       default: "invited",
+    },
+    numberOfAssignedLeads: {
+      type: Number,
+      default: 0,
+    },
+    numberOfCompletedLeads: {
+      type: Number,
+      default: 0,
     },
   },
   {
