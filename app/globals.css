@@ -1629,6 +1629,12 @@ minmax(0,
     grid-template-columns:320px minmax(0,1fr);
     gap:40px;
 }
+.leads-workspace.is-sidebar-closed{
+    grid-template-columns:1fr;
+}
+.leads-workspace.is-sidebar-closed .leads-sidebar {
+    display:none;
+}
 @media (min-width:1180px) {
     .leads-content { max-width:none; }
 }

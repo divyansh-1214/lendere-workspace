@@ -421,14 +421,14 @@ export default function LeadsPage() {
         )}
       </section>
 
-      <div className={`leads-workspace ${sidebarOpen ? "is-sidebar-open" : ""}`}>
+      <div className={`leads-workspace ${sidebarOpen ? "is-sidebar-open" : "is-sidebar-closed"}`}>
         <aside className="leads-sidebar" aria-label="Filter sidebar">
           <div className="sidebar-header">
             <div>
               <span className="sidebar-kicker">refine results</span>
               <h2>Find a lead</h2>
             </div>
-            <button className="sidebar-close" type="button" onClick={() => setSidebarOpen(false)} aria-label="Close filter sidebar">×</button>
+            <button className="sidebar-close" type="button" onClick={() =>{ setSidebarOpen(false); console.log("Sidebar closed"); }} aria-label="Close filter sidebar">×</button>
           </div>
 
           <label className="sidebar-search">
