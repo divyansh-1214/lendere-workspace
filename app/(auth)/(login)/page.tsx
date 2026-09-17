@@ -68,7 +68,7 @@ export default function LoginPage() {
             {error && <p className="auth-error" role="alert">{error}</p>}
             <button className="auth-submit" disabled={submitting} type="submit">{submitting ? "Signing in…" : "Sign in"}<span>→</span></button>
           </form>
-          <p className="auth-switch">Need an account? <Link href="/signup">Create one</Link></p>
+          {/*<p className="auth-switch">Need an account? <Link href="/signup">Create one</Link></p>*/}
         </div>
       </section>
     </main>

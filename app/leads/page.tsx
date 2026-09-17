@@ -154,13 +154,6 @@ export default function LeadsPage() {
       setError("Unable to load leads right now. Please try again.");
       setLoading(false);
     });
-    axios.get("/api/cases?page=1&pageSize=10").then((response) => {
-      setFreeLeads(response.data.data || []);
-      setFreeLeadCount(response.data.totalCount || 0);
-    }).catch(() => {
-      setFreeLeads([]);
-      setFreeLeadCount(0);
-    }).finally(() => setFreeLeadsLoading(false));
     axios.get("/api/users/agents").then((response) => setAgents(response.data.data || [])).catch(() => setAgents([]));
   }, []);
 
@@ -377,13 +370,7 @@ export default function LeadsPage() {
         const city = response.data?.data?.city;
         const state = response.data?.data?.state;
         if (typeof city === "string" && city.trim()) {
-          updateFilter("city",city)
-          // setFilters((current) => (
-          //   current.pincode === pincode
-          //     ? { ...current, city: city.trim() }
-          //     : current
-          // ));
-
+          updateFilter("city", city)
         }
         if (typeof state === "string" && state.trim()) {
           updateFilter("state", state)
@@ -593,7 +580,7 @@ export default function LeadsPage() {
                 <div className="sidebar-field">
                   <label className="sidebar-wide">State<input value={filters.state} onChange={(event) => updateFilter("state", event.target.value)} placeholder="e.g. Maharashtra" /></label>
                   <label className="sidebar-wide">City<input value={filters.city} onChange={(event) => updateFilter("city", event.target.value)} placeholder="e.g. Mumbai" /></label>
-                <label className="sidebar-wide">Pincode<input inputMode="numeric" maxLength={6} value={filters.pincode} onChange={(event) => updateFilter("pincode", event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="e.g. 400001" /></label>
+                  <label className="sidebar-wide">Pincode<input inputMode="numeric" maxLength={6} value={filters.pincode} onChange={(event) => updateFilter("pincode", event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="e.g. 400001" /></label>
                 </div>
               </div>
             </section>
@@ -673,6 +660,15 @@ export default function LeadsPage() {
                     <td>{lead.employment?.income ? `₹${lead.employment.income.toLocaleString()}` : "—"}</td>
                     <td>{lead.credit?.creditScore ?? "—"}</td>
                     <td>{[lead.addresses?.[0]?.city, lead.addresses?.[0]?.state].filter(Boolean).join(", ") || "—"}</td>
+                    <td>
+                      <div className="assignment-controls">
+                        <select aria-label={`Choose agent for ${lead.personal?.firstName || "lead"}`} value={selectedAgents[leadId] || ""} onChange={(event) => setSelectedAgents((current) => ({ ...current, [leadId]: event.target.value }))}>
+                          <option value="">Choose agent</option>
+                          {agents.map((agent) => <option key={agent._id} value={agent._id}>{agent.name}</option>)}
+                        </select>
+                        <button type="button" onClick={() => assignLead(leadId)} disabled={!selectedAgents[leadId] || assigningLead === leadId}>{assigningLead === leadId ? "Assigning..." : "Assign lead →"}</button>
+                      </div>
+                    </td>
                   </tr>;
                 })}</tbody>
               </table>

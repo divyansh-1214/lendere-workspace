@@ -19,8 +19,8 @@ const roleNav: Record<string, NavItem[]> = {
   ],
   lender_admin: [
     { href: "/leads", label: "Lead directory", eyebrow: "01" },
-    { href: "/assigned", label: "Assigned leads", eyebrow: "02" },
-    { href: "/users/new", label: "Add agent", eyebrow: "03" },
+    // { href: "/assigned", label: "Assigned leads", eyebrow: "02" },
+    { href: "/users/new", label: "Add agent", eyebrow: "02" },
   ],
   lender_agent: [
     { href: "/assigned", label: "My assigned leads", eyebrow: "01" },

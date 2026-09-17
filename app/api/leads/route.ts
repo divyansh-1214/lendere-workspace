@@ -207,14 +207,29 @@ export async function GET(request: NextRequest) {
         {
           $lookup: {
             from: "cases",
-            localField: "_id",
-            foreignField: "leadId",
+            let: {
+              leadId: "$_id",
+              lenderId: currentUser.lenderId,
+            },
+            pipeline: [
+              {
+                $match: {
+                  $expr: {
+                    $and: [
+                      { $eq: ["$leadId", "$$leadId"] },
+                      { $eq: ["$lenderId", "$$lenderId"] },
+                    ],
+                  },
+                },
+              },
+            ],
             as: "caseData",
           },
         },
         {
           $addFields: {
             isAssigned: { $gt: [{ $size: "$caseData" }, 0] },
+            data: "$caseData",
           },
         },
         { $sort: sort },

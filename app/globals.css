@@ -653,6 +653,93 @@ var(--paper);
 .builder-secondary:hover:not(:disabled) { border-color:var(--coral); color:var(--coral); }
 .case-node-error { margin:0 0 16px; padding:12px; border-left:3px solid var(--coral); background:#fff0ed; color:#a04b42; font-size:12px; }
 @media (max-width:760px) { .assigned-card-actions { align-items:stretch; flex-direction:column; } .process-case { width:100%; } .case-workbench-heading { align-items:flex-start; flex-direction:column; } .case-workbench-grid { grid-template-columns:1fr; } .case-context { padding:18px; } .builder-row, .outcome-builder { grid-template-columns:1fr; } .builder-secondary { height:42px; } .node-answer-form { align-items:stretch; flex-direction:column; } .node-answer-form button { padding:11px; } }
+
+@media (max-width:700px) {
+    .workspace-shell,
+    .leads-shell,
+    .assigned-shell {
+        width:100%;
+        padding-right:22px;
+        padding-left:22px;
+    }
+
+    .leads-heading,
+    .assigned-heading,
+    .admin-users-heading {
+        padding-top:52px;
+        padding-bottom:42px;
+    }
+
+    .leads-heading-row,
+    .assigned-heading-row,
+    .admin-users-heading-row {
+        display:block;
+    }
+
+    .leads-count {
+        margin-top:28px;
+        padding-left:0;
+        border-left:0;
+        border-top:1px solid var(--line);
+        padding-top:18px;
+    }
+
+    .leads-heading h1,
+    .assigned-heading h1,
+    .admin-users-heading h1 {
+        font-size:clamp(42px, 14vw, 58px);
+        letter-spacing:-2px;
+    }
+
+    .eligibility-panel,
+    .assignment-panel-heading {
+        display:block;
+    }
+
+    .eligibility-rules {
+        grid-template-columns:1fr;
+        margin-top:20px;
+    }
+
+    .leads-table-wrap,
+    .admin-users-table-wrap {
+        max-width:100%;
+        -webkit-overflow-scrolling:touch;
+    }
+
+    .leads-table {
+        min-width:760px;
+    }
+
+    .leads-table th,
+    .leads-table td {
+        padding-right:14px;
+    }
+
+    .assignment-controls {
+        grid-template-columns:minmax(0, 1fr);
+    }
+
+    .assignment-controls button {
+        width:100%;
+    }
+
+    .assigned-summary {
+        grid-template-columns:1fr !important;
+    }
+
+    .assigned-summary div {
+        padding:13px 15px;
+    }
+
+    .case-workbench-heading h2 {
+        font-size:clamp(28px, 9vw, 36px);
+    }
+
+    .case-node-body h3 {
+        overflow-wrap:anywhere;
+    }
+}
 .leads-back {
     color:var(--ink);
     border-bottom:1px solid var(--ink);
